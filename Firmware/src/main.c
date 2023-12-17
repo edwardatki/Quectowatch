@@ -7,8 +7,10 @@
 #include "freertos/task.h"
 #include "nimble-nordic-uart.h"
 #include "driver/gpio.h"
+#include "esp_pm.h"
 #include "cJSON.h"
-#include "emlist.h"
+#include "notifications.h"
+#include "esp_sntp.h"
 
 static const char *_TAG = "MAIN";
 
@@ -19,20 +21,45 @@ const int LED_R_GPIO = 13;
 int bluetooth_connected = 0;
 int music_playing = 0;
 
-LinkedList* active_notifications;
+void update_screen() {
+  static SemaphoreHandle_t screen_mutex = NULL;
+  if (screen_mutex == NULL) screen_mutex = xSemaphoreCreateMutex();
 
-struct notification_t {
-  int id;
-  char* src;
-  char* title;
-  char* subject;
-  char* body;
-  char* sender;
-  char* tel;
-};
+  // Take mutex, blocking
+  ESP_LOGI(_TAG, "waiting for screen mutex");
+  xSemaphoreTake(screen_mutex, portMAX_DELAY);
+
+  // Update screen
+  ESP_LOGI(_TAG, "update screen");
+
+  // Release mutex
+  ESP_LOGI(_TAG, "releasing screen mutex");
+  xSemaphoreGive(screen_mutex);
+
+}
+
+void clock_task(void *parameter) {
+  while (1) {
+    time_t now;
+    struct tm timeinfo;
+    time(&now); // Get time
+    localtime_r(&now, &timeinfo);
+
+    char strftime_buf[64];
+    strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+    ESP_LOGI(_TAG, "current date/time is: %s", strftime_buf);
+
+    update_screen();
+
+    vTaskDelay((60 - timeinfo.tm_sec) * 1000 / portTICK_PERIOD_MS);
+  }
+
+  ESP_LOGE(_TAG, "gadgetbridge_task crashed");
+  vTaskDelete(NULL);
+}
 
 // Send gadgetbridge message
-void gadgetbridge_send(const char* message) {
+void gadgetbridge_send(const char *message) {
   if (!bluetooth_connected) return;
 
   ESP_LOGI(_TAG, "tx: %s", message);
@@ -41,10 +68,10 @@ void gadgetbridge_send(const char* message) {
 }
 
 // Process received gadgetbridge message
-void gadgetbridge_handle_receive(const char* message) {
+void gadgetbridge_handle_receive(const char *message) {
   ESP_LOGI(_TAG, "rx: %s", message);
 
-  char* json = malloc(strlen(message));
+  char *json = malloc(strlen(message));
   // If message is wrapped in GB(...) then do a nasty little hack to leave the json only
   if (message[1] == 'G') {
     for (int i = 0; i < strlen(message)-5; i++) json[i] = message[i+4];
@@ -53,36 +80,40 @@ void gadgetbridge_handle_receive(const char* message) {
   ESP_LOGD(_TAG, "json: %s", json);
 
   cJSON *root = cJSON_Parse(json);
-
   if (cJSON_GetObjectItem(root, "t")) {
     char *command = cJSON_GetObjectItem(root, "t")->valuestring;
 
     if (strcmp(command, "notify") == 0) {
-      // Extract fields
-      struct notification_t n = {0, "", "", "", "", "", ""};
-      if (cJSON_GetObjectItem(root, "id")) n.id = cJSON_GetObjectItem(root, "id")->valueint;
-      if (cJSON_GetObjectItem(root, "src")) n.src = cJSON_GetObjectItem(root, "src")->valuestring;
-      if (cJSON_GetObjectItem(root, "title")) n.title = cJSON_GetObjectItem(root, "title")->valuestring;
-      if (cJSON_GetObjectItem(root, "subject")) n.subject = cJSON_GetObjectItem(root, "subject")->valuestring;
-      if (cJSON_GetObjectItem(root, "body")) n.body = cJSON_GetObjectItem(root, "body")->valuestring;
-      if (cJSON_GetObjectItem(root, "sender")) n.sender = cJSON_GetObjectItem(root, "sender")->valuestring;
-      if (cJSON_GetObjectItem(root, "tel")) n.tel = cJSON_GetObjectItem(root, "tel")->valuestring;
+      struct notification_t *n = new_notification();
+      
+      // Extract fields, making copy of strings beacuse cJSON has ownership of originals
+      if (cJSON_GetObjectItem(root, "id")) n->id = cJSON_GetObjectItem(root, "id")->valueint;
+      if (cJSON_GetObjectItem(root, "src")) n->src = strdup(cJSON_GetObjectItem(root, "src")->valuestring);
+      if (cJSON_GetObjectItem(root, "title")) n->title = strdup(cJSON_GetObjectItem(root, "title")->valuestring);
+      if (cJSON_GetObjectItem(root, "subject")) n->subject = strdup(cJSON_GetObjectItem(root, "subject")->valuestring);
+      if (cJSON_GetObjectItem(root, "body")) n->body = strdup(cJSON_GetObjectItem(root, "body")->valuestring);
+      if (cJSON_GetObjectItem(root, "sender")) n->sender = strdup(cJSON_GetObjectItem(root, "sender")->valuestring);
+      if (cJSON_GetObjectItem(root, "tel")) n->tel = strdup(cJSON_GetObjectItem(root, "tel")->valuestring);
 
-      if (strcmp(n.src, "") == 0) {
-        ESP_LOGW(_TAG, "no src so discarding as usually these are junk, id: %d", n.id);
+      if (n->id == 0) {
+        ESP_LOGW(_TAG, "no id so discarding");
+        delete_notification(n);
+      } else if (n->src == NULL) {
+        ESP_LOGW(_TAG, "no src so discarding as these are usually junk, id: %d", n->id);
+        delete_notification(n);
       } else {
-        if (emlist_insert(active_notifications, (void*)n.id)) ESP_LOGI(_TAG, "created notification, id: %d, src: \"%s\", title: \"%s\", subject: \"%s\", body: \"%s\" sender: \"%s\"", n.id, n.src, n.title, n.subject, n.body, n.sender);
-        else ESP_LOGE(_TAG, "failed to created notification, %d", n.id);
+        add_notification(n);
+        ESP_LOGI(_TAG, "%d active notifications", notification_count());
+        update_screen();
       }
     } else if (strcmp(command, "notify-") == 0) {
       int id = 0;
       if (cJSON_GetObjectItem(root, "id")) id = cJSON_GetObjectItem(root, "id")->valueint;
 
-      if (emlist_contains(active_notifications, (void*)id)) {
-        emlist_remove(active_notifications, (void*)id);
-        ESP_LOGI(_TAG, "cleared notification, id: %d", id);
-      }
-      else ESP_LOGW(_TAG, "failed to cleared notification, id: %d", id);
+      // Clear notification if it exists
+      clear_notification(id);
+      ESP_LOGI(_TAG, "%d active notifications", notification_count());
+      update_screen();
     } else if (strcmp(command, "musicstate") == 0) {
       char* state = "";
       if (cJSON_GetObjectItem(root, "state")) state = cJSON_GetObjectItem(root, "state")->valuestring;
@@ -94,21 +125,40 @@ void gadgetbridge_handle_receive(const char* message) {
       ESP_LOGI(_TAG, "unsupported command");
     }
   } else {
-    ESP_LOGI(_TAG, "couldn't extract command");
-  }
+    // Not JSON, probably time set command
+    if (strstr(json,"setTime") != NULL) {
+      int utc = 0;
+      float gmt_offset = 0.0;
+      if (sscanf(json, "%*[^(]%*c%d%*[^(]%*c%f", &utc, &gmt_offset) == 2) {
+        char timezone_buf [8];
+        sprintf(timezone_buf, "GMT+%d", (int)gmt_offset);
+        setenv("TZ", timezone_buf, 1);
+        tzset();
 
-  ESP_LOGI(_TAG, "%d active notifications", emlist_size(active_notifications));
+        struct timeval tv;
+        tv.tv_usec = 0;
+        tv.tv_sec = utc;
+        settimeofday(&tv, NULL);
+
+        ESP_LOGI(_TAG, "time set command, utc: %d, timezone: %s", utc, timezone_buf);
+      } else {
+        ESP_LOGE(_TAG, "failed to process time set command");;
+      }
+    } else {
+      ESP_LOGI(_TAG, "couldn't extract command");
+    }
+  }
 
   cJSON_Delete(root);
   free(json);
+
+  gpio_set_level(LED_R_GPIO, notification_count());
 }
 
 void gadgetbridge_task(void *parameter) {
-  active_notifications = emlist_create();
-
   while (1) {
     if (nordic_uart_rx_buf_handle) {
-      // Get latest from FIFO buffer, allow to timeout
+      // Get latest from FIFO buffer, blocking
       size_t item_size;
       const char *message = (char *)xRingbufferReceive(nordic_uart_rx_buf_handle, &item_size, portMAX_DELAY);
 
@@ -123,13 +173,15 @@ void gadgetbridge_task(void *parameter) {
     }
   }
 
-  ESP_LOGE(_TAG, "echoTask crashed");
+  ESP_LOGE(_TAG, "gadgetbridge_task crashed");
   vTaskDelete(NULL);
 }
 
 void nordic_uart_callback (enum nordic_uart_callback_type callback_type) {
   if (callback_type == NORDIC_UART_CONNECTED) bluetooth_connected = 1;
   else if (callback_type == NORDIC_UART_DISCONNECTED) bluetooth_connected = 0;
+
+  gpio_set_level(LED_L_GPIO, bluetooth_connected);
 }
 
 void app_main(void) {
@@ -145,19 +197,35 @@ void app_main(void) {
   gpio_set_direction(LED_R_GPIO, GPIO_MODE_OUTPUT);
   gpio_set_level(LED_R_GPIO, 0);
 
+  // Configure automatic light-sleep
+  esp_pm_config_t pm_config;
+  pm_config.max_freq_mhz = 160;
+  pm_config.min_freq_mhz = 40;
+  pm_config.light_sleep_enable = true;
+  if (esp_pm_configure((&pm_config)) != ESP_OK) ESP_LOGE(_TAG, "failed to configure light sleep");
+
   _nordic_uart_start("Nordic UART", &nordic_uart_callback);
   xTaskCreate(gadgetbridge_task, "gadgetbridge_task", 5000, NULL, 1, NULL);
+  xTaskCreate(clock_task, "clock_task", 5000, NULL, 1, NULL);
 
   while (1) {
-    gpio_set_level(LED_L_GPIO, bluetooth_connected);
-    if (active_notifications != NULL) gpio_set_level(LED_R_GPIO, emlist_size(active_notifications));
-
     if (!gpio_get_level(BUTTON_GPIO)) {
       // gadgetbridge_send("{t:\"info\", msg:\"beep boop\"}");
       // gadgetbridge_send("{t:\"status\", bat:86, volt:4.1, chg:1}");
 
-      if (music_playing) gadgetbridge_send("{t:\"music\", n:\"pause\"}");
-      else gadgetbridge_send("{t:\"music\", n:\"play\"}");
+      // if (music_playing) gadgetbridge_send("{t:\"music\", n:\"pause\"}");
+      // else gadgetbridge_send("{t:\"music\", n:\"play\"}");
+
+      struct notification_t *n = next_notification(NULL);
+      if (n != NULL) {
+        char buf[100];
+        sprintf(buf, "{t:\"notify\", id:%d, n:\"DISMISS\"}", n->id);
+        gadgetbridge_send(buf);
+      }
+      while (n != NULL) {
+        ESP_LOGI(_TAG, "list, id: %d", n->id);
+        n = next_notification(n);
+      }
 
       vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
