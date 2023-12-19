@@ -31,13 +31,8 @@ void delete_notification(struct notification_t* n) {
 }
 
 void add_notification(struct notification_t* n) {
-    if (list_root == NULL) {
-        list_root = n;
-    } else {
-        struct notification_t *current_entry = list_root;
-        while (current_entry->next != NULL) current_entry = current_entry->next;
-        current_entry->next = n;
-    }
+    if (list_root != NULL) n->next = list_root; 
+    list_root = n;
     ESP_LOGI(_TAG, "added notification, id: %d", n->id);
 }
 
@@ -96,4 +91,8 @@ int notification_count() {
     }
     ESP_LOGV(_TAG, "counted %d notifications", count);
     return count;
+}
+
+struct notification_t* latest_notification(int id) {
+    return list_root;
 }

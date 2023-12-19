@@ -25,5 +25,6 @@ struct notification_t* get_notification(int id);
 esp_err_t clear_notification(int id);
 int notification_count();
 struct notification_t* next_notification(struct notification_t* n);
+struct notification_t* latest_notification();
 
 #endif
