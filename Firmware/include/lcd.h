@@ -9,6 +9,7 @@
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_types.h"
 #include "lvgl.h"
+#include "esp_pm.h"
 
 #define LCD_HOST  SPI2_HOST
 
@@ -31,18 +32,28 @@
 #define LEDC_MODE LEDC_LOW_SPEED_MODE
 #define LEDC_CHANNEL LEDC_CHANNEL_0
 #define LEDC_DUTY_RES LEDC_TIMER_13_BIT
-#define LEDC_DUTY 4096 // 50%
-#define LEDC_FREQUENCY 500
+#define LEDC_DUTY 2048 // 25%
+#define LEDC_FREQUENCY 100
 
-#define LVGL_TICK_PERIOD_MS 10
-#define LVGL_TASK_MAX_DELAY_MS 1000
+#define LVGL_TICK_PERIOD_MS 5
+#define LVGL_TASK_MAX_DELAY_MS 30
 #define LVGL_TASK_MIN_DELAY_MS 1
 #define LVGL_TASK_STACK_SIZE 4096
-#define LVGL_TASK_PRIORITY 2
+#define LVGL_TASK_PRIORITY 3
 
 lv_disp_t *disp;
 
 static SemaphoreHandle_t lvgl_mux = NULL;
+
+int lvgl_task_running = 0;
+
+void anim_x_cb(void * var, int32_t v) {
+    lv_obj_set_x(var, v);
+}
+
+void anim_y_cb(void * var, int32_t v) {
+    lv_obj_set_y(var, v);
+}
 
 // Tell lvgl that disaply refresh is finished
 static bool notify_lvgl_flush_ready(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_io_event_data_t *edata, void *user_ctx) {
@@ -104,23 +115,43 @@ void lvgl_unlock(void) {
 
 // Main LVGL task
 static void lvgl_port_task(void *arg) {
-  ESP_LOGI(_TAG, "Starting LVGL task");
-  uint32_t task_delay_ms = 1000;
+  ESP_LOGI(_TAG, "lvgl task start");
+  lvgl_task_running = 1;
+  static esp_pm_lock_handle_t pm_cpu_lock = NULL;
+  if (pm_cpu_lock == NULL) esp_pm_lock_create(ESP_PM_CPU_FREQ_MAX, 0, "lvgl_cpu", &pm_cpu_lock);
+  assert(pm_cpu_lock);
+
+  uint32_t task_delay_ms = LVGL_TASK_MAX_DELAY_MS;
   while (1) {
     // Lock the mutex due as LVGL APIs are not thread-safe
     if (lvgl_lock(-1)) {
       // Do update
+      esp_pm_lock_acquire(pm_cpu_lock); // Lets crank some frames... doesn't actually seem to make any difference
       task_delay_ms = lv_timer_handler();
       // Release the mutex
+      esp_pm_lock_release(pm_cpu_lock);
       lvgl_unlock();
     }
     // Clamp delay time
-    if (task_delay_ms > LVGL_TASK_MAX_DELAY_MS) task_delay_ms = LVGL_TASK_MAX_DELAY_MS;
+    if (task_delay_ms > LVGL_TASK_MAX_DELAY_MS) break;
     else if (task_delay_ms < LVGL_TASK_MIN_DELAY_MS) task_delay_ms = LVGL_TASK_MIN_DELAY_MS;
 
     // Delay as long as LVGL requested
-    ESP_LOGI(_TAG, "lvgl_port_task done, waiting %lu", task_delay_ms);
+    ESP_LOGD(_TAG, "lvgl task waiting %lu", task_delay_ms);
     vTaskDelay(task_delay_ms / portTICK_PERIOD_MS);
+  }
+
+  ESP_LOGI(_TAG, "lvgl task done");
+  esp_pm_lock_delete(pm_cpu_lock);
+  lvgl_task_running = 0;
+  vTaskDelete(NULL);
+}
+
+void lvgl_reactivate() {
+  // TODO query properly with freertos functions
+  if (!lvgl_task_running) {
+    ESP_LOGI(_TAG, "create lvgl task");
+    xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, NULL);
   }
 }
 
@@ -128,7 +159,7 @@ void init_lcd() {
   static lv_disp_draw_buf_t disp_buf; // contains internal graphic buffer(s) called draw buffer(s)
   static lv_disp_drv_t disp_drv;      // contains callback functions
 
-  ESP_LOGI(_TAG, "Initialize backlight PWM");
+  ESP_LOGI(_TAG, "initialize backlight pwm");
   gpio_sleep_sel_dis(LCD_BL_PIN);
   // Prepare and then apply the LEDC PWM timer configuration
   ledc_timer_config_t ledc_timer = {
@@ -153,7 +184,7 @@ void init_lcd() {
   ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel));
   
 
-  ESP_LOGI(_TAG, "Initialize SPI bus");
+  ESP_LOGI(_TAG, "initialize spi bus");
   spi_bus_config_t buscfg = {
       .sclk_io_num = LCD_SCLK_PIN,
       .mosi_io_num = LCD_MOSI_PIN,
@@ -165,7 +196,7 @@ void init_lcd() {
   // Initialize LCD
   ESP_ERROR_CHECK(spi_bus_initialize(LCD_HOST, &buscfg, SPI_DMA_CH_AUTO));
 
-  ESP_LOGI(_TAG, "Install panel IO");
+  ESP_LOGI(_TAG, "install panel io");
   esp_lcd_panel_io_handle_t io_handle = NULL;
   esp_lcd_panel_io_spi_config_t io_config = {
       .dc_gpio_num = LCD_DC_PIN,
@@ -184,10 +215,10 @@ void init_lcd() {
   esp_lcd_panel_handle_t panel_handle = NULL;
   esp_lcd_panel_dev_config_t panel_config = {
       .reset_gpio_num = LCD_RST_PIN,
-      .color_space = LCD_RGB_ENDIAN_BGR,
+      .color_space = LCD_RGB_ENDIAN_RGB,
       .bits_per_pixel = 16,
   };
-  ESP_LOGI(_TAG, "Install ST7789 panel driver");
+  ESP_LOGI(_TAG, "install st7789 panel driver");
   ESP_ERROR_CHECK(esp_lcd_new_panel_st7789(io_handle, &panel_config, &panel_handle));
 
   // LCD reset and init
@@ -204,7 +235,7 @@ void init_lcd() {
 
   // ---
 
-  ESP_LOGI(_TAG, "Initialize LVGL library");
+  ESP_LOGI(_TAG, "initialize lvgl library");
   lv_init();
 
   // alloc draw buffers used by LVGL
@@ -216,7 +247,7 @@ void init_lcd() {
   // initialize LVGL draw buffers
   lv_disp_draw_buf_init(&disp_buf, buf1, buf2, LCD_H_RES * 20);
 
-  ESP_LOGI(_TAG, "Register LCD driver to LVGL");
+  ESP_LOGI(_TAG, "register lcd driver to lvgl");
   lv_disp_drv_init(&disp_drv);
   disp_drv.hor_res = LCD_H_RES;
   disp_drv.ver_res = LCD_V_RES;
@@ -226,7 +257,7 @@ void init_lcd() {
   disp_drv.user_data = panel_handle;
   disp = lv_disp_drv_register(&disp_drv);
 
-  ESP_LOGI(_TAG, "Install LVGL tick timer");
+  ESP_LOGI(_TAG, "install lvgl tick timer");
   // Tick interface for LVGL (using esp_timer to generate periodic event)
   const esp_timer_create_args_t lvgl_tick_timer_args = {
       .callback = &increase_lvgl_tick,
@@ -239,9 +270,6 @@ void init_lcd() {
   // Create lvgl mutex
   lvgl_mux = xSemaphoreCreateRecursiveMutex();
   assert(lvgl_mux);
-
-  // ESP_LOGI(_TAG, "Create LVGL task");
-  // xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, NULL);
 }
 
 #endif

@@ -9,6 +9,7 @@
 #include "services/gap/ble_svc_gap.h"
 #include "services/gatt/ble_svc_gatt.h"
 #include <freertos/FreeRTOS.h>
+#include "esp_bt.h"
 
 static const char *_TAG = "NORDIC UART";
 
@@ -224,6 +225,10 @@ esp_err_t _nordic_uart_start(const char *device_name, void (*callback)(enum nord
   ble_gatts_add_svcs(gat_svcs);
 
   ble_hs_cfg.sync_cb = ble_app_on_sync_cb;
+
+  ESP_LOGI(_TAG, "ble tx power before %d", esp_ble_tx_power_get(ESP_BLE_PWR_TYPE_DEFAULT));
+  ESP_ERROR_CHECK(esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_DEFAULT, ESP_PWR_LVL_N12)); // Doesn't seem to actually reduce power consumption
+  ESP_LOGI(_TAG, "ble tx power after %d", esp_ble_tx_power_get(ESP_BLE_PWR_TYPE_DEFAULT));
 
   // Create NimBLE thread
   nimble_port_freertos_init(ble_host_task);
