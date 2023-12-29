@@ -1,8 +1,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-static const char *_TAG = "MAIN";
-
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/ringbuf.h"
@@ -19,6 +17,8 @@ static const char *_TAG = "MAIN";
 #define BUTTON_GPIO 9
 #define LED_L_GPIO 12
 #define LED_R_GPIO 13
+
+static const char *_TAG = "MAIN";
 
 static QueueHandle_t gpio_event_queue = NULL;
 
@@ -41,8 +41,8 @@ void update_lcd() {
     lv_obj_set_scrollbar_mode(scr, LV_SCROLLBAR_MODE_OFF);
 
     lv_style_init(&style);
-    lv_style_set_text_font(&style, &lv_font_montserrat_18); // Default font
-    lv_style_set_text_color(&style, lv_color_white());
+    lv_style_set_text_font(&style, &lv_font_montserrat_18); // Default text font
+    lv_style_set_text_color(&style, lv_color_white()); // Default text color
 
     // Set scrolling to not repeat
     lv_anim_init(&scroll_anim);
@@ -82,7 +82,7 @@ void update_lcd() {
     label_n_body = lv_label_create(scr);
     lv_obj_align(label_n_body, LV_ALIGN_BOTTOM_LEFT, 0, 0);
     lv_obj_set_width(label_n_body, 234);
-    lv_label_set_long_mode(label_n_body, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    lv_label_set_long_mode(label_n_body, LV_LABEL_LONG_DOT);
     lv_obj_add_style(label_n_body, &style, LV_PART_MAIN);
     lv_obj_set_parent(label_n_body, notification_container);
     lv_obj_set_style_anim(label_n_body, &scroll_anim, LV_PART_MAIN);
@@ -139,10 +139,12 @@ void update_lcd() {
   lv_label_set_text_fmt(label_n_count, "%d", notification_count());
   lv_obj_align(label_n_count, LV_ALIGN_TOP_RIGHT, 0, 0);
 
-  lvgl_reactivate();
-
   // Release mutex
   lvgl_unlock();
+
+  lvgl_reactivate();
+
+  ESP_LOGI(_TAG, "free heap size: %lu", esp_get_free_heap_size());
 }
 
 void clock_task(void *parameter) {
@@ -191,7 +193,7 @@ void app_main(void) {
   esp_pm_config_t pm_config;
   pm_config.max_freq_mhz = 80;
   pm_config.min_freq_mhz = 40;
-  pm_config.light_sleep_enable = false; // Recommend disabling during development as can cause programming issues over USB
+  pm_config.light_sleep_enable = true; // Recommend disabling during development as can cause programming issues over USB
   if (esp_pm_configure((&pm_config)) != ESP_OK) ESP_LOGE(_TAG, "failed to configure light sleep");
 
   gadgetbridge_init();

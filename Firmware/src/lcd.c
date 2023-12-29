@@ -48,7 +48,7 @@ lv_disp_t *disp;
 
 SemaphoreHandle_t lvgl_mux = NULL;
 
-int lvgl_task_running = 0;
+static volatile int lvgl_task_running = 0;
 
 void anim_x_cb(void *var, int32_t v) {
     lv_obj_set_x(var, v);
@@ -118,8 +118,8 @@ void lvgl_unlock() {
 
 // Main LVGL task
 static void lvgl_port_task(void *arg) {
-  ESP_LOGI(_TAG, "lvgl task start");
   lvgl_task_running = 1;
+  ESP_LOGI(_TAG, "lvgl task start");
   static esp_pm_lock_handle_t pm_cpu_lock = NULL;
   if (pm_cpu_lock == NULL) esp_pm_lock_create(ESP_PM_CPU_FREQ_MAX, 0, "lvgl_cpu", &pm_cpu_lock);
   assert(pm_cpu_lock);
@@ -127,6 +127,7 @@ static void lvgl_port_task(void *arg) {
   uint32_t task_delay_ms = LVGL_TASK_MAX_DELAY_MS;
   while (1) {
     // Lock the mutex due as LVGL APIs are not thread-safe
+    ESP_LOGD(_TAG, "lvgl task waiting for mutex");
     if (lvgl_lock(-1)) {
       // Do update
       esp_pm_lock_acquire(pm_cpu_lock); // Lets crank some frames... doesn't actually seem to make any difference
@@ -155,6 +156,9 @@ void lvgl_reactivate() {
   if (!lvgl_task_running) {
     ESP_LOGI(_TAG, "create lvgl task");
     xTaskCreate(lvgl_port_task, "LVGL", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, NULL);
+    vTaskDelay(1 / portTICK_PERIOD_MS); // Not entirley sure why this is nescessary but without it sometimes the task fails to start properly
+  } else {
+    ESP_LOGI(_TAG, "lvgl task already running");
   }
 }
 
@@ -194,9 +198,9 @@ void init_lcd() {
       .miso_io_num = LCD_MISO_PIN,
       .quadwp_io_num = -1,
       .quadhd_io_num = -1,
-      .max_transfer_sz = LCD_H_RES * 80 * sizeof(uint16_t),
+      .max_transfer_sz = LCD_H_RES * LCD_V_RES * sizeof(uint16_t) / 2
   };
-  // Initialize LCD
+  // Initialize SPI
   ESP_ERROR_CHECK(spi_bus_initialize(LCD_HOST, &buscfg, SPI_DMA_CH_AUTO));
 
   ESP_LOGI(_TAG, "install panel io");
@@ -243,12 +247,14 @@ void init_lcd() {
 
   // alloc draw buffers used by LVGL
   // it's recommended to choose the size of the draw buffer(s) to be at least 1/10 LCD sized
-  lv_color_t *buf1 = heap_caps_malloc(LCD_H_RES * 20 * sizeof(lv_color_t), MALLOC_CAP_DMA);
-  assert(buf1);
-  lv_color_t *buf2 = heap_caps_malloc(LCD_H_RES * 20 * sizeof(lv_color_t), MALLOC_CAP_DMA);
-  assert(buf2);
+  // lv_color_t *buf1 = heap_caps_malloc(LCD_H_RES * LCD_V_RES * sizeof(lv_color_t) / 2, MALLOC_CAP_DMA);
+  // assert(buf1);
+  // lv_color_t *buf2 = heap_caps_malloc(LCD_H_RES * LCD_V_RES * sizeof(lv_color_t) / 2, MALLOC_CAP_DMA);
+  // assert(buf2);
+  DMA_ATTR static lv_color_t buf1[LCD_V_RES * LCD_H_RES / 8];
+  DMA_ATTR static lv_color_t buf2[LCD_V_RES * LCD_H_RES / 8];
   // initialize LVGL draw buffers
-  lv_disp_draw_buf_init(&disp_buf, buf1, buf2, LCD_H_RES * 20);
+  lv_disp_draw_buf_init(&disp_buf, &buf1, &buf2, LCD_H_RES * LCD_V_RES / 8);
 
   ESP_LOGI(_TAG, "register lcd driver to lvgl");
   lv_disp_drv_init(&disp_drv);

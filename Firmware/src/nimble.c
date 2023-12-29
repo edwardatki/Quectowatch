@@ -122,6 +122,12 @@ static void ble_app_advertise(void) {
   memset(&adv_params, 0, sizeof(adv_params));
   adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
   adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
+  
+  // Set advertising interval
+  adv_params.itvl_max = 10000; // 6250ms
+  adv_params.itvl_min = 100; // 62.5ms
+
+  ble_svc_gap_device_appearance_set(192);
 
   err = ble_gap_adv_start(ble_addr_type, NULL, BLE_HS_FOREVER, &adv_params, ble_gap_event_cb, NULL);
   if (err) ESP_LOGE(_TAG, "Advertising start failed: err %d", err);
@@ -133,6 +139,16 @@ static int ble_gap_event_cb(struct ble_gap_event *event, void *arg) {
     ESP_LOGI(_TAG, "BLE_GAP_EVENT_CONNECT %s", event->connect.status == 0 ? "OK" : "Failed");
     if (event->connect.status == 0) {
       ble_conn_hdl = event->connect.conn_handle;
+
+      // Try to update connection parameters, longer intervals to reduce power consumption
+      // Doesn't seem to do anything :(
+      static struct ble_gap_upd_params conn_params;
+      conn_params.itvl_max = 10000; // 12500ms
+      conn_params.itvl_max = 100; // 125ms
+      conn_params.latency = 0;
+      conn_params.supervision_timeout = 500; // 5000ms
+      ble_gap_update_params(ble_conn_hdl, &conn_params);
+
       if (_nordic_uart_callback) _nordic_uart_callback(NORDIC_UART_CONNECTED);
     } else {
       ble_app_advertise();
