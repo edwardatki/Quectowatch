@@ -164,7 +164,7 @@ void clock_task(void *parameter) {
     vTaskDelay((((60 - timeinfo.tm_sec) * 1000) + 200) / portTICK_PERIOD_MS);
   }
 
-  ESP_LOGE(_TAG, "gadgetbridge_task crashed");
+  ESP_LOGE(_TAG, "clock crashed");
   vTaskDelete(NULL);
 }
 
