@@ -14,22 +14,43 @@
 		zephyr,code-partition = &slot0_partition;
 	};
 
+	/* These aliases are provided for compatibility with samples */
 	aliases {
-		led0 = &myled0; // I don't understand why this only works with an alias yet
+		led0 = &led0;
+		led1 = &led1;
+		led2 = &led2;
 	};
 
 	leds {
 		compatible = "gpio-leds";
 		
-		myled0: led_0 {
-			gpios = <&gpio0 11 GPIO_ACTIVE_LOW>;
+		led0: led_0 {
+			gpios = <&gpio0 26 GPIO_ACTIVE_LOW>;
 			label = "Red LED";
+		};
+
+		led1: led_1 {
+			gpios = <&gpio0 30 GPIO_ACTIVE_LOW>;
+			label = "Green LED";
+		};
+
+		led2: led_2 {
+			gpios = <&gpio0 06 GPIO_ACTIVE_LOW>;
+			label = "Blue LED";
 		};
 	};
 };
 
+&gpiote {
+	status = "okay";
+};
+
 &gpio0 {
-	status="ok";
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
 };
 
 &flash0 {
@@ -60,4 +81,3 @@
 		};
 	};
 };
-
