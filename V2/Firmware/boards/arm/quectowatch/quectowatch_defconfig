@@ -8,6 +8,8 @@ CONFIG_BOARD_QUECTOWATCH=y
 # Enable MPU
 CONFIG_ARM_MPU=y
 
+CONFIG_PINCTRL=y
+
 # Enable hardware stack protection
 CONFIG_HW_STACK_PROTECTION=y
 

@@ -124,13 +124,14 @@ static void ble_app_advertise(void) {
   adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
   
   // Set advertising interval
-  adv_params.itvl_max = 10000; // 6250ms
-  adv_params.itvl_min = 100; // 62.5ms
+  adv_params.itvl_max = 0; // 6250ms
+  adv_params.itvl_min = 0; // 625ms
 
   ble_svc_gap_device_appearance_set(192);
 
   err = ble_gap_adv_start(ble_addr_type, NULL, BLE_HS_FOREVER, &adv_params, ble_gap_event_cb, NULL);
   if (err) ESP_LOGE(_TAG, "Advertising start failed: err %d", err);
+  else ESP_LOGI(_TAG, "Advertising start");
 }
 
 static int ble_gap_event_cb(struct ble_gap_event *event, void *arg) {
@@ -141,22 +142,21 @@ static int ble_gap_event_cb(struct ble_gap_event *event, void *arg) {
       ble_conn_hdl = event->connect.conn_handle;
 
       // Try to update connection parameters, longer intervals to reduce power consumption
-      // Doesn't seem to do anything :(
-      static struct ble_gap_upd_params conn_params;
-      conn_params.itvl_max = 10000; // 12500ms
-      conn_params.itvl_max = 100; // 125ms
-      conn_params.latency = 0;
-      conn_params.supervision_timeout = 500; // 5000ms
-      ble_gap_update_params(ble_conn_hdl, &conn_params);
+      // static struct ble_gap_upd_params conn_params;
+      // conn_params.itvl_max = 2000; // 2500ms
+      // conn_params.itvl_min = 100; // 125ms
+      // conn_params.latency = 0;
+      // conn_params.supervision_timeout = 500; // 5000ms
+      // ble_gap_update_params(ble_conn_hdl, &conn_params);
 
-      if (_nordic_uart_callback) _nordic_uart_callback(NORDIC_UART_CONNECTED);
+      // if (_nordic_uart_callback) _nordic_uart_callback(NORDIC_UART_CONNECTED);
     } else {
       ble_app_advertise();
     }
     break;
   case BLE_GAP_EVENT_DISCONNECT:
     ESP_LOGI(_TAG, "BLE_GAP_EVENT_DISCONNECT");
-    if (_nordic_uart_callback) _nordic_uart_callback(NORDIC_UART_DISCONNECTED);
+    // if (_nordic_uart_callback) _nordic_uart_callback(NORDIC_UART_DISCONNECTED);
     ble_app_advertise();
     break;
   case BLE_GAP_EVENT_ADV_COMPLETE:

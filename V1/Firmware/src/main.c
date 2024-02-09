@@ -14,6 +14,8 @@
 #include "lcd.h"
 #include "lvgl.h"
 
+// Current draw is 9ma when disconnected, 20ma when connected
+
 #define BUTTON_GPIO 9
 #define LED_L_GPIO 12
 #define LED_R_GPIO 13
@@ -192,7 +194,7 @@ void app_main(void) {
   // Configure automatic light-sleep
   esp_pm_config_t pm_config;
   pm_config.max_freq_mhz = 80;
-  pm_config.min_freq_mhz = 40;
+  pm_config.min_freq_mhz = 80;
   pm_config.light_sleep_enable = true; // Recommend disabling during development as can cause programming issues over USB
   if (esp_pm_configure((&pm_config)) != ESP_OK) ESP_LOGE(_TAG, "failed to configure light sleep");
 

@@ -133,13 +133,15 @@ static void gadgetbridge_task(void *parameter) {
 
 static void nordic_uart_callback (enum nordic_uart_callback_type callback_type) {
   if (callback_type == NORDIC_UART_CONNECTED) {
+    ESP_LOGI(_TAG, "CONNECTED");
     bluetooth_connected = 1;
   } else if (callback_type == NORDIC_UART_DISCONNECTED) {
+    ESP_LOGI(_TAG, "DISCONNECTED");
     bluetooth_connected = 0;
     music_playing = 0;
   }
 
-  update_lcd();
+  // update_lcd();
 }
 
 void gadgetbridge_init() {

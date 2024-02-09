@@ -3,12 +3,14 @@
 
 /dts-v1/;
 #include <nordic/nrf52840_qiaa.dtsi>
+#include "quectowatch-pinctrl.dtsi"
 
 / {
 	model = "Quectowatch";
 	compatible = "ed-atkinson,quectowatch";
 
 	chosen {
+		zephyr,console = &uart0;
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
 		zephyr,code-partition = &slot0_partition;
@@ -41,6 +43,10 @@
 	};
 };
 
+&adc {
+	status = "okay";
+};
+
 &gpiote {
 	status = "okay";
 };
@@ -50,6 +56,27 @@
 };
 
 &gpio1 {
+	status = "okay";
+};
+
+&uart0 {
+	compatible = "nordic,nrf-uarte";
+	current-speed = <115200>;
+	status = "okay";
+	pinctrl-0 = <&uart0_default>;
+	pinctrl-1 = <&uart0_sleep>;
+	pinctrl-names = "default", "sleep";
+};
+
+&uart1 {
+	current-speed = <1000000>;
+	status = "disabled";
+	pinctrl-0 = <&uart1_default>;
+	pinctrl-1 = <&uart1_sleep>;
+	pinctrl-names = "default", "sleep";
+};
+
+zephyr_udc0: &usbd {
 	status = "okay";
 };
 
