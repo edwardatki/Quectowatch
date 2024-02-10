@@ -10,6 +10,12 @@ dependencies:
       service_url: https://api.components.espressif.com/
       type: service
     version: 8.3.11
-manifest_hash: 7dcbaee877cf3be0b976657a10f7160a16c7bb56751e041e6393cf3edd7323e3
+  masuidrive/nimble-nordic-uart:
+    component_hash: 80659307952a9ff6d8e539fe3e39aa10217247b366a3b158dca0e2cf488e8bc0
+    source:
+      service_url: https://api.components.espressif.com/
+      type: service
+    version: 1.0.3
+manifest_hash: f165ded25308fefeb799f22a6ee1b606210a463fe5bb7153110e7b94d6021dda
 target: esp32c3
 version: 1.0.0
