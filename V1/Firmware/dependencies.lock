@@ -1,4 +1,10 @@
 dependencies:
+  espressif/esp_lcd_ssd1681:
+    component_hash: 692a56d5ff07554e8e9e7b1abe2a811d0dab81fcd354dc08d12ce28cbbaf45e1
+    source:
+      service_url: https://api.components.espressif.com/
+      type: service
+    version: 0.1.0
   idf:
     component_hash: null
     source:
@@ -16,6 +22,6 @@ dependencies:
       service_url: https://api.components.espressif.com/
       type: service
     version: 1.0.3
-manifest_hash: f165ded25308fefeb799f22a6ee1b606210a463fe5bb7153110e7b94d6021dda
+manifest_hash: aeafa502375d1925e66d86fb237fed4eea2ba12745d9500d2aa000955cea758a
 target: esp32c3
 version: 1.0.0
