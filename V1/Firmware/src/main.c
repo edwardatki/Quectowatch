@@ -12,6 +12,8 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "lvgl.h"
+#include "esp_pm.h"
+#include "nimble-nordic-uart.h"
 
 // #include "ssd1681_waveshare_1in54_lut.h"
 
@@ -40,7 +42,7 @@ static const char *TAG = "example";
 #define EXAMPLE_LCD_CMD_BITS           8
 #define EXAMPLE_LCD_PARAM_BITS         8
 
-#define EXAMPLE_LVGL_TICK_PERIOD_MS    2
+#define EXAMPLE_LVGL_TICK_PERIOD_MS    50
 
 
 static SemaphoreHandle_t panel_refreshing_sem = NULL;
@@ -135,7 +137,7 @@ static void example_increase_lvgl_tick(void *arg)
     lv_tick_inc(EXAMPLE_LVGL_TICK_PERIOD_MS);
 }
 
-void app_main(void)
+void lcdTask(void* parameter)
 {
     static lv_disp_draw_buf_t disp_buf; // contains internal graphic buffer(s) called draw buffer(s)
     static lv_disp_drv_t disp_drv;      // contains callback functions
@@ -254,5 +256,59 @@ void app_main(void)
     while (1) {
         if (lvgl_clock_update()) lv_timer_handler();
         vTaskDelay(pdMS_TO_TICKS(200));
+    }
+}
+
+void echoTask(void *parameter) {
+    ESP_LOGI(TAG, "Start echoTask");
+
+    static char mbuf[CONFIG_NORDIC_UART_MAX_LINE_LENGTH + 1];
+    for (;;) {
+        size_t item_size;
+        if (nordic_uart_rx_buf_handle) {
+            const char *item = (char *)xRingbufferReceive(nordic_uart_rx_buf_handle, &item_size, portMAX_DELAY);
+
+            if (item) {
+                int i;
+                for (i = 0; i < item_size; ++i) {
+                if (item[i] >= 'a' && item[i] <= 'z')
+                    mbuf[i] = item[i] - 0x20;
+                else
+                    mbuf[i] = item[i];
+                }
+                mbuf[item_size] = '\0';
+
+                nordic_uart_sendln(mbuf);
+                puts(mbuf);
+                vRingbufferReturnItem(nordic_uart_rx_buf_handle, (void *)item);
+            }
+        } else {
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+        }
+    }
+
+  vTaskDelete(NULL);
+}
+
+void app_main() {
+    // esp_pm_config_esp32_t pm_config = {
+    //     .max_freq_mhz = 160, // e.g. 80, 160, 240
+    //     .min_freq_mhz = 80, // e.g. 40
+    //     .light_sleep_enable = false // enable light sleep
+    // };
+    // ESP_ERROR_CHECK(esp_pm_configure(&pm_config));
+
+    // ESP_LOGI(TAG, "Start LCD");
+    xTaskCreate(lcdTask, "lcdTask", 5000, NULL, 1, NULL);
+
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+
+    ESP_LOGI(TAG, "Start Nordic UART");
+    nordic_uart_start("Nordic UART", NULL);
+    xTaskCreate(echoTask, "echoTask", 5000, NULL, 1, NULL);
+
+    while (1) {
+        ESP_LOGI(TAG, "BEEP BOOP");
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
     }
 }
