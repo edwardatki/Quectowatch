@@ -21,14 +21,17 @@ void example_lvgl_demo_ui(lv_disp_t *disp) {
     lv_obj_set_style_text_font(label_time, &lv_font_montserrat_48, LV_PART_MAIN);
 }
 
-int lvgl_clock_update() {
+int lvgl_clock_update(int bluetooth_connected) {
     time_t now;
     struct tm timeinfo;
     time(&now); // Get time
     localtime_r(&now, &timeinfo);
     static int last_minute = 0;
-    if (last_minute == timeinfo.tm_min) return 0;
-    lv_label_set_text_fmt(label_time, "%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min);
+    static int last_bluetooth_connected = 0;
+    if ((last_minute == timeinfo.tm_min) && (last_bluetooth_connected == bluetooth_connected)) return 0;
+
+    lv_label_set_text_fmt(label_time, "%02d:%02d %c", timeinfo.tm_hour, timeinfo.tm_min, bluetooth_connected ? 'Y' : 'N');
     last_minute = timeinfo.tm_min;
+    last_bluetooth_connected = bluetooth_connected;
     return 1;
 }

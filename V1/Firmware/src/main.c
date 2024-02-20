@@ -44,14 +44,14 @@ static const char *TAG = "example";
 
 #define EXAMPLE_LVGL_TICK_PERIOD_MS    50
 
-
 static SemaphoreHandle_t panel_refreshing_sem = NULL;
+
+int bluetooth_connected = 0;
 
 extern void example_lvgl_demo_ui(lv_disp_t *disp);
 extern int lvgl_clock_update();
 
-IRAM_ATTR bool epaper_flush_ready_callback(const esp_lcd_panel_handle_t handle, const void *edata, void *user_data)
-{
+IRAM_ATTR bool epaper_flush_ready_callback(const esp_lcd_panel_handle_t handle, const void *edata, void *user_data) {
     lv_disp_drv_t *disp_driver = (lv_disp_drv_t *) user_data;
     lv_disp_flush_ready(disp_driver);
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -62,32 +62,21 @@ IRAM_ATTR bool epaper_flush_ready_callback(const esp_lcd_panel_handle_t handle, 
     return false;
 }
 
-static uint8_t *converted_buffer_black;
-static uint8_t *converted_buffer_red;
-static void example_lvgl_flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *color_map)
-{
+static void example_lvgl_flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *color_map) {
     esp_lcd_panel_handle_t panel_handle = (esp_lcd_panel_handle_t) drv->user_data;
     int offsetx1 = area->x1;
     int offsetx2 = area->x2;
     int offsety1 = area->y1;
     int offsety2 = area->y2;
-    // Used to vertical traverse lvgl framebuffer
-    // int len_x = abs(offsetx1 - offsetx2) + 1;
-    // int len_y = abs(offsety1 - offsety2) + 1;
-    // --- Convert buffer from color to monochrome bitmap
+
     int len_bits = (abs(offsetx1 - offsetx2) + 1) * (abs(offsety1 - offsety2) + 1);
 
+    DMA_ATTR static uint8_t converted_buffer_black[EXAMPLE_LCD_V_RES * EXAMPLE_LCD_H_RES / 8];
     memset(converted_buffer_black, 0x00, len_bits / 8);
+    
     for (int i = 0; i < len_bits; i++) {
-        // NOTE: Set bits of converted_buffer[] FROM LOW ADDR TO HIGH ADDR, FROM HSB TO LSB
-        // NOTE: 1 means BLACK/RED, 0 means WHITE
-        // Horizontal traverse lvgl framebuffer (by row)
         converted_buffer_black[i / 8] |= (((lv_color_brightness(color_map[i])) < 251) << (7 - (i % 8)));
-        // Vertical traverse lvgl framebuffer (by column), needs to uncomment len_x and len_y
-        // NOTE: If your screen rotation requires setting the pixels vertically, you could use the code below
-        // converted_buffer[i/8] |= (((lv_color_brightness(color_map[((i*len_x)%len_bits) + i/len_y])) > 250) << (7-(i % 8)));
     }
-    // --- Draw bitmap
 
     esp_lcd_panel_disp_on_off(panel_handle, true);
     ESP_ERROR_CHECK(epaper_panel_set_bitmap_color(panel_handle, SSD1681_EPAPER_BITMAP_BLACK));
@@ -96,14 +85,12 @@ static void example_lvgl_flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_
     esp_lcd_panel_disp_on_off(panel_handle, false);
 }
 
-static void example_lvgl_wait_cb(struct _lv_disp_drv_t *disp_drv)
-{
+static void example_lvgl_wait_cb(struct _lv_disp_drv_t *disp_drv) {
     xSemaphoreTake(panel_refreshing_sem, portMAX_DELAY);
 }
 
 /* Rotate display and touch, when rotated screen in LVGL. Called when driver parameters are updated. */
-static void example_lvgl_port_update_callback(lv_disp_drv_t *drv)
-{
+static void example_lvgl_port_update_callback(lv_disp_drv_t *drv) {
     esp_lcd_panel_handle_t panel_handle = (esp_lcd_panel_handle_t) drv->user_data;
 
     switch (drv->rotated) {
@@ -131,14 +118,12 @@ static void example_lvgl_port_update_callback(lv_disp_drv_t *drv)
 }
 
 
-static void example_increase_lvgl_tick(void *arg)
-{
+static void example_increase_lvgl_tick(void *arg) {
     /* Tell LVGL how many milliseconds has elapsed */
     lv_tick_inc(EXAMPLE_LVGL_TICK_PERIOD_MS);
 }
 
-void lcdTask(void* parameter)
-{
+void lcdTask(void* parameter) {
     static lv_disp_draw_buf_t disp_buf; // contains internal graphic buffer(s) called draw buffer(s)
     static lv_disp_drv_t disp_drv;      // contains callback functions
 
@@ -152,7 +137,7 @@ void lcdTask(void* parameter)
         .miso_io_num = EXAMPLE_PIN_NUM_MISO,
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
-        .max_transfer_sz = EXAMPLE_LCD_H_RES * 200 / 8,
+        .max_transfer_sz = EXAMPLE_LCD_H_RES * EXAMPLE_LCD_V_RES / 8,
     };
     ESP_ERROR_CHECK(spi_bus_initialize(LCD_HOST, &buscfg, SPI_DMA_CH_AUTO));
 
@@ -216,15 +201,18 @@ void lcdTask(void* parameter)
     lv_init();
     // alloc draw buffers used by LVGL
     // it's recommended to choose the size of the draw buffer(s) to be at least 1/10 screen sized
-    lv_color_t *buf1 = heap_caps_malloc(EXAMPLE_LCD_H_RES * 200 * sizeof(lv_color_t), MALLOC_CAP_DMA);
+    // lv_color_t *buf1 = heap_caps_malloc(EXAMPLE_LCD_H_RES * EXAMPLE_LCD_V_RES * sizeof(lv_color_t), MALLOC_CAP_DMA);
+    // static lv_color_t buf1[EXAMPLE_LCD_V_RES * EXAMPLE_LCD_H_RES * sizeof(lv_color_t) / 2];
+    lv_color_t *buf1 = (lv_color_t*)malloc(EXAMPLE_LCD_H_RES * EXAMPLE_LCD_V_RES * sizeof(lv_color_t));//heap_caps_malloc(EXAMPLE_LCD_H_RES * EXAMPLE_LCD_V_RES * sizeof(lv_color_t) / 2, 0);
     assert(buf1);
-    lv_color_t *buf2 = heap_caps_malloc(EXAMPLE_LCD_H_RES * 200 * sizeof(lv_color_t), MALLOC_CAP_DMA);
-    assert(buf2);
+    // lv_color_t *buf2 = heap_caps_malloc(EXAMPLE_LCD_H_RES * 200 * sizeof(lv_color_t), MALLOC_CAP_DMA);
+    // DMA_ATTR static lv_color_t buf2[EXAMPLE_LCD_V_RES * (EXAMPLE_LCD_H_RES/5) * sizeof(lv_color_t)];
+    // assert(buf2);
     // alloc bitmap buffer to draw
-    converted_buffer_black = heap_caps_malloc(EXAMPLE_LCD_H_RES * EXAMPLE_LCD_V_RES / 8, MALLOC_CAP_DMA);
-    converted_buffer_red = heap_caps_malloc(EXAMPLE_LCD_H_RES * EXAMPLE_LCD_V_RES / 8, MALLOC_CAP_DMA);
+    // converted_buffer_black = heap_caps_malloc(EXAMPLE_LCD_H_RES * EXAMPLE_LCD_V_RES / 8, MALLOC_CAP_DMA);
+    // converted_buffer_red = heap_caps_malloc(EXAMPLE_LCD_H_RES * EXAMPLE_LCD_V_RES / 8, MALLOC_CAP_DMA);
     // initialize LVGL draw buffers
-    lv_disp_draw_buf_init(&disp_buf, buf1, buf2, EXAMPLE_LCD_H_RES * 200);
+    lv_disp_draw_buf_init(&disp_buf, buf1, NULL, EXAMPLE_LCD_V_RES * EXAMPLE_LCD_H_RES);
     // initialize LVGL display driver
     lv_disp_drv_init(&disp_drv);
     disp_drv.hor_res = EXAMPLE_LCD_H_RES;
@@ -254,7 +242,10 @@ void lcdTask(void* parameter)
     example_lvgl_demo_ui(disp);
 
     while (1) {
-        if (lvgl_clock_update()) lv_timer_handler();
+        if (lvgl_clock_update(bluetooth_connected)) {
+            ESP_LOGI(TAG, "LVGL update");
+            lv_timer_handler();
+        }
         vTaskDelay(pdMS_TO_TICKS(200));
     }
 }
@@ -290,22 +281,25 @@ void echoTask(void *parameter) {
   vTaskDelete(NULL);
 }
 
+void nordic_callback(enum nordic_uart_callback_type callback_type) {
+    if (callback_type == NORDIC_UART_CONNECTED) bluetooth_connected = 1;
+    else bluetooth_connected = 0;
+}
+
 void app_main() {
-    // esp_pm_config_esp32_t pm_config = {
-    //     .max_freq_mhz = 160, // e.g. 80, 160, 240
-    //     .min_freq_mhz = 80, // e.g. 40
-    //     .light_sleep_enable = false // enable light sleep
+    // esp_pm_config_t pm_config = {
+    //     .max_freq_mhz = 160,
+    //     .min_freq_mhz = 80,
+    //     .light_sleep_enable = false
     // };
     // ESP_ERROR_CHECK(esp_pm_configure(&pm_config));
 
-    // ESP_LOGI(TAG, "Start LCD");
-    xTaskCreate(lcdTask, "lcdTask", 5000, NULL, 1, NULL);
-
-    vTaskDelay(500 / portTICK_PERIOD_MS);
-
     ESP_LOGI(TAG, "Start Nordic UART");
-    nordic_uart_start("Nordic UART", NULL);
+    nordic_uart_start("Nordic UART", &nordic_callback);
     xTaskCreate(echoTask, "echoTask", 5000, NULL, 1, NULL);
+
+    ESP_LOGI(TAG, "Start LCD");
+    xTaskCreate(lcdTask, "lcdTask", 5000, NULL, 1, NULL);
 
     while (1) {
         ESP_LOGI(TAG, "BEEP BOOP");
