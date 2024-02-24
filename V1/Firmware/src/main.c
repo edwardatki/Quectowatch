@@ -3,28 +3,19 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
-#include "esp_timer.h"
-#include "esp_lcd_panel_io.h"
-#include "esp_lcd_panel_vendor.h"
-#include "esp_lcd_panel_ops.h"
-#include "driver/gpio.h"
-#include "driver/spi_master.h"
 #include "esp_err.h"
 #include "esp_log.h"
-#include "lvgl.h"
 #include "esp_pm.h"
 #include "nimble-nordic-uart.h"
 
-// #include "ssd1681_waveshare_1in54_lut.h"
-
-static const char *TAG = "example";
+static const char *TAG = "MAIN";
 
 int bluetooth_connected = 0;
 
 #include "eink.h"
 
-void echoTask(void *parameter) {
-    ESP_LOGI(TAG, "Start echoTask");
+void echo_task(void *parameter) {
+    ESP_LOGI(TAG, "Start echo_task");
 
     static char mbuf[CONFIG_NORDIC_UART_MAX_LINE_LENGTH + 1];
     for (;;) {
@@ -68,12 +59,9 @@ void app_main() {
     // };
     // ESP_ERROR_CHECK(esp_pm_configure(&pm_config));
 
-    ESP_LOGI(TAG, "Start Nordic UART");
     nordic_uart_start("Nordic UART", &nordic_callback);
-    xTaskCreate(echoTask, "echoTask", 5000, NULL, 1, NULL);
-
-    ESP_LOGI(TAG, "Start LCD");
-    xTaskCreate(lcdTask, "lcdTask", 5000, NULL, 1, NULL);
+    xTaskCreate(echo_task, "echo_task", 5000, NULL, 1, NULL);
+    xTaskCreate(lcd_task, "lcd_task", 5000, NULL, 1, NULL);
 
     return;
 }

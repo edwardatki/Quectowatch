@@ -1,3 +1,3 @@
 #pragma once
 
-void lcdTask(void* parameter);
+void lcd_task(void* parameter);
