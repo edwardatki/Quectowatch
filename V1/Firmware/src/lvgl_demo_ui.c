@@ -7,6 +7,8 @@ extern int refresh_mode;
 lv_obj_t *label_time;
 lv_obj_t *label_status;
 
+LV_FONT_DECLARE(dseg7_classic_mini_bold_56);
+
 void lvgl_ui_init(lv_disp_t *disp) {
     lv_obj_t *scr = lv_disp_get_scr_act(disp);
 
@@ -16,13 +18,13 @@ void lvgl_ui_init(lv_disp_t *disp) {
 
     lv_style_t style;
     lv_style_init(&style);
-    lv_style_set_text_font(&style, &lv_font_montserrat_18); // Default text font
-    lv_style_set_text_color(&style, lv_color_black()); // Default text color
+    lv_style_set_text_font(&style, &lv_font_montserrat_18);
+    lv_style_set_text_color(&style, lv_color_black());
 
     label_time = lv_label_create(scr);
     lv_obj_align(label_time, LV_ALIGN_CENTER, 0, 0);
     lv_obj_add_style(label_time, &style, LV_PART_MAIN);
-    lv_obj_set_style_text_font(label_time, &lv_font_montserrat_48, LV_PART_MAIN);
+    lv_obj_set_style_text_font(label_time, &dseg7_classic_mini_bold_56, LV_PART_MAIN);
 
     label_status = lv_label_create(scr);
     lv_obj_align(label_status, LV_ALIGN_TOP_RIGHT, 0, 0);
