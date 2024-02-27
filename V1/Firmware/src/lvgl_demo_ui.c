@@ -1,8 +1,8 @@
 #include "lvgl.h"
 #include "esp_sntp.h"
-
-extern int bluetooth_connected;
-extern int refresh_mode;
+#include "eink.h"
+#include "gadgetbridge.h"
+#include "notifications.h"
 
 lv_obj_t *label_time;
 lv_obj_t *label_status;
@@ -35,20 +35,24 @@ void lvgl_ui_init(lv_disp_t *disp) {
 int lvgl_ui_update() {
     time_t now;
     struct tm timeinfo;
-    time(&now); // Get time
+    time(&now);
     localtime_r(&now, &timeinfo);
 
     static int last_minute = -1;
     static int last_bluetooth_connected = -1;
-    if ((last_minute == timeinfo.tm_min) && (last_bluetooth_connected == bluetooth_connected)) return 0;
+    static int last_notification_count = -1;
+    if ((last_minute == timeinfo.tm_min) && (last_bluetooth_connected == bluetooth_connected) && (last_notification_count == notification_count())) return 0;
 
     if (last_bluetooth_connected != bluetooth_connected) refresh_mode = 1;
+    if (last_notification_count != notification_count()) refresh_mode = 1;
     if (last_minute != timeinfo.tm_min) refresh_mode = 2;
 
     lv_label_set_text_fmt(label_time, "%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min);
-    lv_label_set_text_fmt(label_status, "%s", bluetooth_connected ? LV_SYMBOL_BLUETOOTH : "");
+    if (notification_count() > 0) lv_label_set_text_fmt(label_status, "%d %s", notification_count(), bluetooth_connected ? LV_SYMBOL_BLUETOOTH : "");
+    else lv_label_set_text_fmt(label_status, "%s", bluetooth_connected ? LV_SYMBOL_BLUETOOTH : "");
 
     last_minute = timeinfo.tm_min;
     last_bluetooth_connected = bluetooth_connected;
+    last_notification_count = notification_count();
     return 1;
 }
