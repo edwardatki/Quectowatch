@@ -13,15 +13,13 @@
 static const char *TAG = "MAIN";
 
 void app_main() {
-    // esp_pm_config_t pm_config = {
-    //     .max_freq_mhz = 160,
-    //     .min_freq_mhz = 80,
-    //     .light_sleep_enable = false
-    // };
-    // ESP_ERROR_CHECK(esp_pm_configure(&pm_config));
+    esp_pm_config_t pm_config = {
+        .max_freq_mhz = 80,
+        .min_freq_mhz = 80,
+        .light_sleep_enable = false
+    };
+    ESP_ERROR_CHECK(esp_pm_configure(&pm_config));
 
     xTaskCreate(gadgetbridge_task, "gadgetbridge_task", 5000, NULL, 1, NULL);
     xTaskCreate(lcd_task, "lcd_task", 5000, NULL, 1, NULL);
-
-    return;
 }

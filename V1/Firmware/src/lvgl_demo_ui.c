@@ -34,16 +34,16 @@ void lvgl_ui_init(lv_disp_t *disp) {
     lv_obj_set_style_text_font(label_status, &lv_font_montserrat_24, LV_PART_MAIN);
 
     label_notification_title = lv_label_create(scr);
-    lv_obj_align(label_notification_title, LV_ALIGN_BOTTOM_LEFT, 0, -40);
+    lv_obj_align(label_notification_title, LV_ALIGN_BOTTOM_LEFT, 0, -48);
     lv_obj_add_style(label_notification_title, &style, LV_PART_MAIN);
-    lv_obj_set_style_text_font(label_notification_title, &lv_font_montserrat_18, LV_PART_MAIN);
+    lv_obj_set_style_text_font(label_notification_title, &lv_font_montserrat_14, LV_PART_MAIN);
 
     label_notification_body = lv_label_create(scr);
     lv_obj_align(label_notification_body, LV_ALIGN_BOTTOM_LEFT, 0, 0);
     lv_obj_add_style(label_notification_body, &style, LV_PART_MAIN);
-    lv_obj_set_style_text_font(label_notification_body, &lv_font_montserrat_18, LV_PART_MAIN);
+    lv_obj_set_style_text_font(label_notification_body, &lv_font_montserrat_14, LV_PART_MAIN);
     lv_obj_set_width(label_notification_body, 200);
-    lv_obj_set_height(label_notification_body, 40);
+    lv_obj_set_height(label_notification_body, 48);
     lv_label_set_long_mode(label_notification_body, LV_LABEL_LONG_WRAP);
 }
 
@@ -65,15 +65,14 @@ int lvgl_ui_update() {
     if (last_minute != timeinfo.tm_min) refresh_mode = 2;
 
     lv_label_set_text_fmt(label_time, "%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min);
-    if (notification_count() > 0) lv_label_set_text_fmt(label_status, "%d %s", notification_count(), bluetooth_connected ? LV_SYMBOL_BLUETOOTH : "");
-    else lv_label_set_text_fmt(label_status, "%s  %s", music_playing ? LV_SYMBOL_AUDIO : "", bluetooth_connected ? LV_SYMBOL_BLUETOOTH : "");
+    lv_label_set_text_fmt(label_status, "%s  %s", music_playing ? LV_SYMBOL_AUDIO : "", bluetooth_connected ? LV_SYMBOL_BLUETOOTH : "");
 
     if (notification_count() > 0) {
         lv_label_set_text_fmt(label_notification_title, "%s", latest_notification()->title);
         lv_label_set_text_fmt(label_notification_body, "%s", latest_notification()->body);
     } else {
-        lv_label_set_text_fmt(label_notification_title, "None");
-        lv_label_set_text_fmt(label_notification_body, "...");
+        lv_label_set_text_fmt(label_notification_title, " ");
+        lv_label_set_text_fmt(label_notification_body, " ");
     }
 
     last_minute = timeinfo.tm_min;

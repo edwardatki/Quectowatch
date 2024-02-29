@@ -110,7 +110,7 @@ void gadgetbridge_task(void *parameter) {
     for (;;) {
         size_t item_size;
         if (nordic_uart_rx_buf_handle) {
-            const char *item = (char *)xRingbufferReceive(nordic_uart_rx_buf_handle, &item_size, portMAX_DELAY);
+            const char *item = (char*)xRingbufferReceive(nordic_uart_rx_buf_handle, &item_size, portMAX_DELAY);
 
             if (item) {
                 for (int i = 0; i < item_size; ++i) {
@@ -120,7 +120,7 @@ void gadgetbridge_task(void *parameter) {
 
                 ESP_LOGI(TAG, "RECEIVE: %s", mbuf);
                 gadgetbridge_handle_receive(mbuf);
-                vRingbufferReturnItem(nordic_uart_rx_buf_handle, (void *)item);
+                vRingbufferReturnItem(nordic_uart_rx_buf_handle, (void*)item);
             }
         } else {
             vTaskDelay(1000 / portTICK_PERIOD_MS);

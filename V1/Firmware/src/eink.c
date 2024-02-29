@@ -10,6 +10,7 @@
 #include "esp_lcd_panel_ssd1681.h"
 #include "esp_err.h"
 #include "esp_log.h"
+#include "esp_pm.h"
 #include "lvgl.h"
 
 #include "ssd1681_waveshare_1in54_lut.h"
@@ -115,7 +116,7 @@ static void increase_lvgl_tick(void *arg) {
 }
 
 void lcd_task(void* parameter) {
-    static lv_disp_draw_buf_t disp_buf; // Contains internal graphic buffer(s) called draw buffer(s)
+    static lv_disp_draw_buf_t disp_buf; // Contains internal draw buffers
     static lv_disp_drv_t disp_drv;      // Contains callback functions
 
     panel_refreshing_sem = xSemaphoreCreateBinary();
