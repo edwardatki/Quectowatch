@@ -16,6 +16,7 @@ void gadgetbridge_handle_receive(const char *message) {
   printf("json: %s\n", json);
 
   cJSON *root = cJSON_Parse(json);
+  printf("parsed\n");
   if (cJSON_GetObjectItem(root, "t")) {
     char *command = cJSON_GetObjectItem(root, "t")->valuestring;
 
@@ -46,10 +47,10 @@ void gadgetbridge_handle_receive(const char *message) {
       int id = 0;
       if (cJSON_GetObjectItem(root, "id")) id = cJSON_GetObjectItem(root, "id")->valueint;
 
-      // Clear notification if it exists
+      // // Clear notification if it exists
       printf("try clear\n");
-      clear_notification(id);
-      printf("cleared\n");
+      // clear_notification(id);
+      // printf("cleared\n");
       // update_lcd();
     } else if (strcmp(command, "musicstate") == 0) {
       char* state = (char*)"";

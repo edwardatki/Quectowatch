@@ -173,6 +173,7 @@
       ],
       "track_widths": [
         0.0,
+        0.1,
         0.2
       ],
       "via_dimensions": [
@@ -191,7 +192,10 @@
     "equivalence_files": []
   },
   "erc": {
-    "erc_exclusions": [],
+    "erc_exclusions": [
+      "pin_to_pin|3771900|1028700|81661682-2f71-4a22-880f-8526bb820314|640de22d-606f-43c4-98be-da371090da34|/6af5a0e9-93db-4d9f-940f-84c5d7d580d1|/6af5a0e9-93db-4d9f-940f-84c5d7d580d1|/6af5a0e9-93db-4d9f-940f-84c5d7d580d1",
+      "pin_to_pin|3771900|1054100|f32c8c3d-2bae-42fd-89b7-b1866e9e8c29|640de22d-606f-43c4-98be-da371090da34|/6af5a0e9-93db-4d9f-940f-84c5d7d580d1|/6af5a0e9-93db-4d9f-940f-84c5d7d580d1|/6af5a0e9-93db-4d9f-940f-84c5d7d580d1"
+    ],
     "meta": {
       "version": 0
     },
