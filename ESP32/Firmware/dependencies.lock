@@ -9,19 +9,19 @@ dependencies:
     component_hash: null
     source:
       type: idf
-    version: 5.1.2
+    version: 5.2.1
   lvgl/lvgl:
     component_hash: 948bff879a345149b83065535bbc4a026ce9f47498a22881e432a264b9098015
     source:
       service_url: https://api.components.espressif.com/
       type: service
     version: 8.3.11
-  masuidrive/nimble-nordic-uart:
-    component_hash: 80659307952a9ff6d8e539fe3e39aa10217247b366a3b158dca0e2cf488e8bc0
+  masuidrive__nimble-nordic-uart:
+    component_hash: null
     source:
-      service_url: https://api.components.espressif.com/
-      type: service
+      path: C:\Users\Ed\Documents\GitHub\TimeyWimey\ESP32\Firmware\components\masuidrive__nimble-nordic-uart
+      type: local
     version: 1.0.3
-manifest_hash: aeafa502375d1925e66d86fb237fed4eea2ba12745d9500d2aa000955cea758a
+manifest_hash: 1b3d579413d405991614853948314a0d3764ef5d096395aa326d1db0f554b548
 target: esp32c3
 version: 1.0.0

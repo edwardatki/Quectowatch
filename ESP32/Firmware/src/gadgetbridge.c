@@ -76,15 +76,22 @@ static void gadgetbridge_handle_receive(const char *message) {
       int utc = 0;
       float gmt_offset = 0.0;
       if (sscanf(json, "%*[^(]%*c%d%*[^(]%*c%f", &utc, &gmt_offset) == 2) {
-        char timezone_buf [8];
-        sprintf(timezone_buf, "GMT+%d", (int)gmt_offset);
-        setenv("TZ", timezone_buf, 1);
+        setenv("TZ", "GMT0", 1);
         tzset();
 
         struct timeval tv;
         tv.tv_usec = 0;
         tv.tv_sec = utc;
         settimeofday(&tv, NULL);
+
+        char timezone_buf [32];
+        // Timezone offsets are reversed from common sense
+        // if (gmt_offset < 0) sprintf(timezone_buf, "GMT+%d", abs((int)gmt_offset));
+        // else if (gmt_offset > 0) sprintf(timezone_buf, "GMT-%d", abs((int)gmt_offset));
+        // else sprintf(timezone_buf, "GMT0");
+        sprintf(timezone_buf, "GMT%+d", (int)-gmt_offset);
+        setenv("TZ", timezone_buf, 1);
+        tzset();
         
         // update_lcd();
 
