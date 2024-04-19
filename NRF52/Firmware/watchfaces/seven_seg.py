@@ -42,3 +42,5 @@ class Watchface(displayio.Group):
         self.date_label.text = "%02d-%02d-%02d" % (t.tm_mday, t.tm_mon, t.tm_year % 100)
         self.dow_label.text = "%s" % (week_days[t.tm_wday])
 
+    def update_battery(self, percentage):
+        self.battery_label.text = ("  Ed Atkinson      %3.0f%%" % (percentage))
