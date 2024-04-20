@@ -6,11 +6,11 @@ from adafruit_ds3231 import DS3231
 import displayio
 import framebufferio
 import sharpdisplay
+import buttons
 from gadgetbridge import Gadgetbridge
-
-#from watchfaces.seven_seg import Watchface
-#from watchfaces.analog import Watchface
-from watchfaces.words import Watchface
+import watchfaces.seven_seg
+import watchfaces.analog
+import watchfaces.words
 
 # Define peripherals
 fg = MAX17048(busio.I2C(board.FG_SCL, board.FG_SDA, frequency=400000))
@@ -24,8 +24,9 @@ lcd_bus = busio.SPI(board.LCD_SCLK, board.LCD_SDI)
 framebuffer = sharpdisplay.SharpMemoryFramebuffer(lcd_bus, board.LCD_CS, 128, 128, baudrate=8000000)
 display = framebufferio.FramebufferDisplay(framebuffer, rotation=180, auto_refresh=False)
 
-watchface = Watchface()
-display.root_group = watchface
+watchfaces = (watchfaces.seven_seg.Watchface(), watchfaces.words.Watchface(), watchfaces.analog.Watchface())
+watchface_index = 0
+display.root_group = watchfaces[watchface_index]
 
 #gadgetbridge = Gadgetbridge()
 
@@ -38,13 +39,22 @@ while True:
     #else:
     #    watchface.notification_label.text = ""
 
+    buttons.update()
+    if buttons.up_just_pressed:
+        watchface_index = (watchface_index + 1) % len(watchfaces)
+    if buttons.down_just_pressed:
+        watchface_index = (watchface_index - 1) % len(watchfaces)
+    
+    watchface = watchfaces[watchface_index]
+    display.root_group = watchfaces[watchface_index]
+
     # Update watchface time
     t = rtc.datetime
-    watchface.update_time(t)
+    watchfaces[watchface_index].update_time(t)
 
     # Update watchface battery reading, fuel gauge is kinda slow so only do occasionally
     if (i > 10):
-        watchface.update_battery(fg.cell_percent)
+        watchfaces[watchface_index].update_battery(fg.cell_percent)
         i = 0
     i += 1
     
