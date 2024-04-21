@@ -1,5 +1,6 @@
 import displayio
 from adafruit_display_text.label import Label
+from adafruit_display_shapes.rect import Rect
 from terminalio import FONT
 from adafruit_bitmap_font import bitmap_font
 
@@ -22,13 +23,10 @@ class Watchface(displayio.Group):
         self.notification_label = Label(font=FONT, text="", anchor_point=(0.0, 1.0), anchored_position=(0, 128), scale=1, line_spacing=1.0, color=0xffffff, background_color=0x000000)
 
         # Background
-        color_bitmap = displayio.Bitmap(128, 128, 1)
-        color_palette = displayio.Palette(1)
-        color_palette[0] = 0xFFFFFF
-        bg_sprite = displayio.TileGrid(color_bitmap, pixel_shader=color_palette, x=0, y=0)
+        bg_rect = Rect(0, 0, 128, 128, fill=0xFFFFFF, outline=None)
 
         # Setup watchface group
-        self.append(bg_sprite)
+        self.append(bg_rect)
         self.append(self.time_label)
         self.append(self.second_label)
         self.append(self.dow_label)

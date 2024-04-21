@@ -1,11 +1,12 @@
 import displayio
 from adafruit_display_text.label import Label
+from adafruit_display_shapes.rect import Rect
 from terminalio import FONT
 from adafruit_bitmap_font import bitmap_font
 from adafruit_display_shapes.line import Line
 
 str_week_days = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-str_months = ("January", "Febuary", "March", "April", "May", "June", "July", "August", "September", "November", "December")
+str_months = ("", "January", "Febuary", "March", "April", "May", "June", "July", "August", "September", "November", "December")
 
 str_hours = ("Twelve", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven")
 
@@ -21,19 +22,18 @@ class Watchface(displayio.Group):
         # Text
         self.time_label = Label(font=FONT, text="hour\nminute", anchor_point=(0.0, 0.0), anchored_position=(4, 0), scale=2, line_spacing=1.0, color=0x000000)
         self.date_label = Label(font=FONT, text="month day", anchor_point=(0.0, 1.0), anchored_position=(4, 126), scale=2, line_spacing=1.0, color=0x000000)
+        self.battery_label = Label(font=FONT, text="999%", anchor_point=(1.0, 0.0), anchored_position=(126, 2), scale=1, line_spacing=1.0, color=0x000000)
 
         self.div_line = Line(0, 76, 128, 76, color=0x000000)
 
         # Background
-        color_bitmap = displayio.Bitmap(128, 128, 1)
-        color_palette = displayio.Palette(1)
-        color_palette[0] = 0xFFFFFF
-        bg_sprite = displayio.TileGrid(color_bitmap, pixel_shader=color_palette, x=0, y=0)
+        bg_rect = Rect(0, 0, 128, 128, fill=0xFFFFFF, outline=None)
 
         # Setup watchface group
-        self.append(bg_sprite)
+        self.append(bg_rect)
         self.append(self.time_label)
         self.append(self.date_label)
+        self.append(self.battery_label)
         self.append(self.div_line)
 
     def update_time(self, t):
@@ -55,4 +55,4 @@ class Watchface(displayio.Group):
         self.date_label.text = "%s %02d\n%s" % (str_week_days[t.tm_wday], t.tm_mday, str_months[t.tm_mon])
 
     def update_battery(self, percentage):
-        pass
+        self.battery_label.text = " %3.0f%%" % (percentage)

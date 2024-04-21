@@ -8,6 +8,8 @@ import framebufferio
 import sharpdisplay
 import buttons
 from gadgetbridge import Gadgetbridge
+from fruity_menu.menu import Menu
+import gc
 import watchfaces.seven_seg
 import watchfaces.analog
 import watchfaces.words
@@ -24,11 +26,32 @@ lcd_bus = busio.SPI(board.LCD_SCLK, board.LCD_SDI)
 framebuffer = sharpdisplay.SharpMemoryFramebuffer(lcd_bus, board.LCD_CS, 128, 128, baudrate=8000000)
 display = framebufferio.FramebufferDisplay(framebuffer, rotation=180, auto_refresh=False)
 
-watchfaces = (watchfaces.seven_seg.Watchface(), watchfaces.words.Watchface(), watchfaces.analog.Watchface())
-watchface_index = 0
-display.root_group = watchfaces[watchface_index]
-
 #gadgetbridge = Gadgetbridge()
+
+active_watchface = watchfaces.words.Watchface()
+exit_menu_flag = False
+in_menu = False
+
+menu = Menu(display, 128, 128, title="Main Menu")
+
+def exit_menu():
+    global exit_menu_flag
+    exit_menu_flag = True
+
+def set_watchface(new_watchface):
+    global active_watchface
+    del active_watchface
+    gc.collect()
+    active_watchface = new_watchface()
+    exit_menu()
+
+watchface_select_menu = menu.create_menu("Watchfaces")
+watchface_select_menu.add_action_button("Seven segment", action=set_watchface, args=watchfaces.seven_seg.Watchface)
+watchface_select_menu.add_action_button("Words", action=set_watchface, args=watchfaces.words.Watchface)
+watchface_select_menu.add_action_button("Analog", action=set_watchface, args=watchfaces.analog.Watchface)
+menu.add_submenu_button("Choose watchface", watchface_select_menu)
+
+menu.add_action_button("Exit", action=exit_menu)
 
 i = 0
 while True:
@@ -38,25 +61,50 @@ while True:
     #    watchface.notification_label.text = gadgetbridge.latest_notification()["src"] + "\t\t\t\t\n" + n[1]["title"]
     #else:
     #    watchface.notification_label.text = ""
-
+    
     buttons.update()
-    if buttons.up_just_pressed:
-        watchface_index = (watchface_index + 1) % len(watchfaces)
-    if buttons.down_just_pressed:
-        watchface_index = (watchface_index - 1) % len(watchfaces)
     
-    watchface = watchfaces[watchface_index]
-    display.root_group = watchfaces[watchface_index]
-
-    # Update watchface time
-    t = rtc.datetime
-    watchfaces[watchface_index].update_time(t)
-
-    # Update watchface battery reading, fuel gauge is kinda slow so only do occasionally
-    if (i > 10):
-        watchfaces[watchface_index].update_battery(fg.cell_percent)
-        i = 0
-    i += 1
+    if exit_menu_flag:
+        in_menu = False
+        menu.reset_menu()
+        exit_menu_flag = False
     
-    # Redraw display
-    display.refresh()
+    if in_menu:
+        if buttons.up_just_pressed:
+            menu.scroll(-1)
+            menu.show_menu()
+            display.refresh()
+        if buttons.down_just_pressed:
+            menu.scroll(1)
+            menu.show_menu()
+            display.refresh()
+        if buttons.center_just_pressed:
+            menu.click()
+            menu.show_menu()
+            display.refresh()
+        
+        time.sleep(1.0/30.0)
+    else:
+        if buttons.center_just_pressed:
+            in_menu = True
+            menu.show_menu()
+            display.refresh()
+            buttons.update()
+            continue
+        
+        display.root_group = active_watchface
+
+        # Update watchface time
+        t = rtc.datetime
+        active_watchface.update_time(t)
+
+        # Update watchface battery reading, fuel gauge is kinda slow so only do occasionally
+        if (i > 10):
+            active_watchface.update_battery(fg.cell_percent)
+            i = 0
+        i += 1
+        
+        # Redraw display
+        display.refresh()
+    
+        time.sleep(1.0/10.0)
