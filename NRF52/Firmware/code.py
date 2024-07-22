@@ -23,12 +23,12 @@ displayio.release_displays()
       
 # Define LCD
 lcd_bus = busio.SPI(board.LCD_SCLK, board.LCD_SDI)
-framebuffer = sharpdisplay.SharpMemoryFramebuffer(lcd_bus, board.LCD_CS, 128, 128, baudrate=8000000)
+framebuffer = sharpdisplay.SharpMemoryFramebuffer(lcd_bus, board.LCD_CS, 128, 128, baudrate=12000000)
 display = framebufferio.FramebufferDisplay(framebuffer, rotation=180, auto_refresh=False)
 
-#gadgetbridge = Gadgetbridge()
+gadgetbridge = Gadgetbridge()
 
-active_watchface = watchfaces.words.Watchface()
+active_watchface = watchfaces.seven_seg.Watchface()
 exit_menu_flag = False
 in_menu = False
 
@@ -56,11 +56,12 @@ menu.add_action_button("Exit", action=exit_menu)
 i = 0
 while True:
     # Notifications
-    #gadgetbridge.update()
-    #if (len(gadgetbridge.notifications) > 0):
-    #    watchface.notification_label.text = gadgetbridge.latest_notification()["src"] + "\t\t\t\t\n" + n[1]["title"]
-    #else:
-    #    watchface.notification_label.text = ""
+    gadgetbridge.update()
+    if (len(gadgetbridge.notifications) > 0):
+        n = gadgetbridge.latest_notification()
+        active_watchface.notification_label.text = n["src"] + "\t\t\t\t\n" + n["title"]
+    else:
+        active_watchface.notification_label.text = ""
     
     buttons.update()
     
@@ -83,14 +84,20 @@ while True:
             menu.show_menu()
             display.refresh()
         
-        time.sleep(1.0/30.0)
+        #time.sleep(1.0/30.0)
     else:
-        if buttons.center_just_pressed:
+        if buttons.center_just_long_pressed:
             in_menu = True
             menu.show_menu()
             display.refresh()
             buttons.update()
             continue
+    
+        if buttons.up_just_long_pressed:
+            gadgetbridge.send_info_message("test")
+    
+        if buttons.down_just_long_pressed:
+            gadgetbridge.clear_latest_notification()
         
         display.root_group = active_watchface
 
@@ -99,7 +106,7 @@ while True:
         active_watchface.update_time(t)
 
         # Update watchface battery reading, fuel gauge is kinda slow so only do occasionally
-        if (i > 10):
+        if (i > 100):
             active_watchface.update_battery(fg.cell_percent)
             i = 0
         i += 1
@@ -107,4 +114,4 @@ while True:
         # Redraw display
         display.refresh()
     
-        time.sleep(1.0/10.0)
+        #time.sleep(1.0/10.0)
