@@ -45,7 +45,7 @@
         "silk_text_thickness": 0.15,
         "silk_text_upright": false,
         "zones": {
-          "min_clearance": 0.25
+          "min_clearance": 0.5
         }
       },
       "diff_pair_dimensions": [
@@ -55,13 +55,7 @@
           "width": 0.0
         }
       ],
-      "drc_exclusions": [
-        "copper_edge_clearance|100607500|82000000|1c954e52-96eb-4ed2-9edf-d083029674a5|f33c66ae-ef7f-42e0-9171-b989df98b3a2",
-        "copper_edge_clearance|101257500|92000000|3a1711f8-920d-4b5d-92ae-5741a01a85ff|b5174b85-d77f-425c-a2fb-39ac119aaf0b",
-        "copper_edge_clearance|101257500|92000000|77b77de4-8627-495d-9ff4-3a9c37a3cb6e|b5174b85-d77f-425c-a2fb-39ac119aaf0b",
-        "net_conflict|113250000|100350000|6ab561db-97e5-4ecf-81a3-b22c428adad8|00000000-0000-0000-0000-000000000000",
-        "padstack|105250000|73900000|e5ef7ccc-ae75-48e3-a0c0-7de8a9725493|00000000-0000-0000-0000-000000000000"
-      ],
+      "drc_exclusions": [],
       "meta": {
         "version": 2
       },
@@ -97,17 +91,17 @@
         "padstack": "warning",
         "pth_inside_courtyard": "ignore",
         "shorting_items": "error",
-        "silk_edge_clearance": "ignore",
+        "silk_edge_clearance": "warning",
         "silk_over_copper": "warning",
-        "silk_overlap": "ignore",
+        "silk_overlap": "warning",
         "skew_out_of_range": "error",
         "solder_mask_bridge": "error",
         "starved_thermal": "error",
         "text_height": "warning",
-        "text_thickness": "ignore",
+        "text_thickness": "warning",
         "through_hole_pad_without_hole": "error",
         "too_many_vias": "error",
-        "track_dangling": "ignore",
+        "track_dangling": "warning",
         "track_width": "error",
         "tracks_crossing": "error",
         "unconnected_items": "error",
@@ -131,7 +125,7 @@
         "min_through_hole_diameter": 0.3,
         "min_track_width": 0.0,
         "min_via_annular_width": 0.09999999999999999,
-        "min_via_diameter": 0.3,
+        "min_via_diameter": 0.5,
         "solder_mask_clearance": 0.0,
         "solder_mask_min_width": 0.0,
         "solder_mask_to_copper_clearance": 0.0,
@@ -243,7 +237,7 @@
         0,
         1,
         0,
-        0,
+        1,
         0,
         1,
         2
@@ -321,7 +315,7 @@
       [
         0,
         2,
-        0,
+        1,
         2,
         0,
         0,
@@ -389,7 +383,7 @@
       "extra_units": "error",
       "global_label_dangling": "warning",
       "hier_label_mismatch": "error",
-      "label_dangling": "warning",
+      "label_dangling": "error",
       "lib_symbol_issues": "warning",
       "missing_bidi_pin": "warning",
       "missing_input_pin": "warning",
@@ -401,7 +395,7 @@
       "no_connect_dangling": "warning",
       "pin_not_connected": "error",
       "pin_not_driven": "error",
-      "pin_to_pin": "error",
+      "pin_to_pin": "warning",
       "power_pin_not_driven": "error",
       "similar_labels": "warning",
       "simulation_model_issue": "error",
@@ -416,14 +410,14 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "Hardware.kicad_pro",
+    "filename": "Frontlight.kicad_pro",
     "version": 1
   },
   "net_settings": {
     "classes": [
       {
         "bus_width": 12,
-        "clearance": 0.15,
+        "clearance": 0.2,
         "diff_pair_gap": 0.25,
         "diff_pair_via_gap": 0.25,
         "diff_pair_width": 0.2,
@@ -452,7 +446,7 @@
       "idf": "",
       "netlist": "",
       "specctra_dsn": "",
-      "step": "Hardware.step",
+      "step": "Frontlight.step",
       "vrml": ""
     },
     "page_layout_descr_file": ""
@@ -493,7 +487,7 @@
   },
   "sheets": [
     [
-      "db8db5a9-ea24-4e79-a6fb-8564a050258a",
+      "73284501-a10f-42bb-af28-bc909adb07bd",
       ""
     ]
   ],

@@ -1,0 +1,4 @@
+Designator,Val,Package,Mid X,Mid Y,Rotation,Layer
+D1,LED,LED_0603_1608Metric,86.25,-83.75,180.0,top
+D2,LED,LED_0603_1608Metric,72.75,-83.75,0.0,top
+R1,27R,R_0603_1608Metric,79.5,-83.75,180.0,top
