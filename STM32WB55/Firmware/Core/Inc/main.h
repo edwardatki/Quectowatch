@@ -67,12 +67,16 @@ void Error_Handler(void);
 #define IMU_SDA_GPIO_Port GPIOB
 #define SW_UP_Pin GPIO_PIN_14
 #define SW_UP_GPIO_Port GPIOB
+#define SW_UP_EXTI_IRQn EXTI15_10_IRQn
 #define SW_LIGHT_Pin GPIO_PIN_3
 #define SW_LIGHT_GPIO_Port GPIOH
+#define SW_LIGHT_EXTI_IRQn EXTI3_IRQn
 #define SW_MENU_Pin GPIO_PIN_15
 #define SW_MENU_GPIO_Port GPIOB
+#define SW_MENU_EXTI_IRQn EXTI15_10_IRQn
 #define SW_DOWN_Pin GPIO_PIN_6
 #define SW_DOWN_GPIO_Port GPIOB
+#define SW_DOWN_EXTI_IRQn EXTI9_5_IRQn
 #define IMU_INT1_Pin GPIO_PIN_8
 #define IMU_INT1_GPIO_Port GPIOB
 #define IMU_INT2_Pin GPIO_PIN_0

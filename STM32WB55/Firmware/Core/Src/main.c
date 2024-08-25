@@ -32,6 +32,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "lcd.h"
+#include "bq27441.h"
+#include "sleep.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -52,7 +54,15 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+uint8_t up_just_pressed = 0;
+uint8_t menu_just_pressed = 0;
+uint8_t down_just_pressed = 0;
 
+uint32_t up_press_start_timestamp;
+uint32_t menu_press_start_timestamp;
+uint32_t down_press_start_timestamp;
+
+uint8_t should_sleep = 1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -64,6 +74,40 @@ void PeriphCommonClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+	if (GPIO_Pin == GPIO_PIN_14) { // UP
+		up_just_pressed = 1;
+		up_press_start_timestamp = HAL_GetTick();
+	} else if(GPIO_Pin == GPIO_PIN_15) { // MENU
+		menu_just_pressed = 1;
+		menu_press_start_timestamp = HAL_GetTick();
+	} else if (GPIO_Pin == GPIO_PIN_6) { // DOWN
+		down_just_pressed = 1;
+		down_press_start_timestamp = HAL_GetTick();
+	} else if (GPIO_Pin == GPIO_PIN_3) { // LIGHT
+		if (HAL_GPIO_ReadPin(SW_LIGHT_GPIO_Port, SW_LIGHT_Pin)) {
+			HAL_LPTIM_PWM_Start(&hlptim1, 100, 50);
+		} else {
+			HAL_LPTIM_PWM_Stop(&hlptim1);
+		}
+	}
+}
+
+static int16_t BQ27441_i2cWriteBytes(uint8_t DevAddress, uint8_t subAddress, uint8_t * src, uint8_t count)
+{
+    if (HAL_I2C_Mem_Write(&hi2c3, (uint16_t)(DevAddress << 1), subAddress, 1, src, count, 50) == HAL_OK)
+        return true;
+    else
+        return false;
+}
+
+static int16_t BQ27441_i2cReadBytes(uint8_t DevAddress, uint8_t subAddress, uint8_t * dest, uint8_t count)
+{
+    if (HAL_I2C_Mem_Read(&hi2c3, (uint16_t)(DevAddress << 1), subAddress, 1, dest, count, 50) == HAL_OK)
+        return true;
+    else
+        return false;
+}
 
 /* USER CODE END 0 */
 
@@ -94,7 +138,7 @@ int main(void)
   PeriphCommonClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+  sleep_init();
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -106,6 +150,16 @@ int main(void)
   MX_SPI1_Init();
   MX_USB_PCD_Init();
   /* USER CODE BEGIN 2 */
+  static BQ27441_ctx_t BQ27441 = {
+		  .BQ27441_i2c_address = BQ72441_I2C_ADDRESS, // i2c device address, if you have another address change this
+		  .read_reg = BQ27441_i2cReadBytes,           // i2c read callback
+		  .write_reg = BQ27441_i2cWriteBytes,         // i2c write callback
+  };
+  BQ27441_init(&BQ27441);
+  BQ27441_enterConfig (1);
+  BQ27441_setCapacity(500);
+  BQ27441_exitConfig (1);
+
   lcd_init();
   /* USER CODE END 2 */
 
@@ -113,34 +167,66 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	if (!HAL_GPIO_ReadPin(SW_UP_GPIO_Port, SW_UP_Pin)) {
-		RTC_TimeTypeDef new_time = {0};
-		HAL_RTC_GetTime(&hrtc, &new_time, RTC_FORMAT_BIN);
+	uint32_t current_timestamp = HAL_GetTick();
 
-		new_time.Hours = (new_time.Hours + 1) % 60;
+	static uint8_t editing = 0;
 
-		HAL_RTC_SetTime(&hrtc, &new_time, RTC_FORMAT_BIN);
+	static uint8_t already_triggered = 0;
+	if (!HAL_GPIO_ReadPin(SW_MENU_GPIO_Port, SW_MENU_Pin) && ((current_timestamp - menu_press_start_timestamp) > 1000)) {
+		if (!already_triggered) {
+			should_sleep = !should_sleep;
+			editing = 0;
+		}
+		already_triggered = 1;
+	} else {
+		already_triggered = 0;
 	}
 
-	if (!HAL_GPIO_ReadPin(SW_DOWN_GPIO_Port, SW_DOWN_Pin)) {
+	if (should_sleep) {
+		up_just_pressed = false;
+		menu_just_pressed = false;
+		down_just_pressed = false;
+
+		lcd_update(-1);
+		enter_stop(200);
+	} else {
+
 		RTC_TimeTypeDef new_time = {0};
+		RTC_DateTypeDef new_date = {0};
 		HAL_RTC_GetTime(&hrtc, &new_time, RTC_FORMAT_BIN);
+		HAL_RTC_GetDate(&hrtc, &new_date, RTC_FORMAT_BIN);
 
-		new_time.Minutes = (new_time.Minutes + 1) % 60;
+		 if (up_just_pressed) {
+			 if (editing == 0) new_time.Hours = ((int16_t)new_time.Hours + 1) % 24;
+			 else if (editing == 1) new_time.Minutes = ((int16_t)new_time.Minutes + 1) % 60;
+			 else if (editing == 2) new_time.Seconds = ((int16_t)new_time.Seconds + 1) % 60;
+			 else if (editing == 3) new_date.Date = ((int16_t)new_date.Date % 31) + 1;
+			 else if (editing == 4) new_date.Month = ((int16_t)new_date.Month % 12) + 1;
+			 else if (editing == 5) new_date.Year = ((int16_t)new_date.Year + 1) % 100;
 
-		HAL_RTC_SetTime(&hrtc, &new_time, RTC_FORMAT_BIN);
+			up_just_pressed = false;
+		 }
+
+		 if (down_just_pressed) {
+			 if (editing == 0) new_time.Hours = ((int16_t)new_time.Hours - 1) % 24;
+			 else if (editing == 1) new_time.Minutes = ((int16_t)new_time.Minutes - 1) % 60;
+			 else if (editing == 2) new_time.Seconds = ((int16_t)new_time.Seconds - 1) % 60;
+			 else if (editing == 3) new_date.Date = (((int16_t)new_date.Date - 1) % 32);
+			 else if (editing == 4) new_date.Month = (((int16_t)new_date.Month - 1) % 13);
+			 else if (editing == 5) new_date.Year = ((int16_t)new_date.Year - 1) % 100;
+
+			 down_just_pressed = false;
+		 }
+
+		 if (menu_just_pressed) {
+			 editing = (editing + 1) % 6;
+			menu_just_pressed = false;
+		 }
+		 HAL_RTC_SetTime(&hrtc, &new_time, RTC_FORMAT_BIN);
+		 HAL_RTC_SetDate(&hrtc, &new_date, RTC_FORMAT_BIN);
+
+		 lcd_update(editing);
 	}
-
-    if (HAL_GPIO_ReadPin(SW_LIGHT_GPIO_Port, SW_LIGHT_Pin)) {
-//      HAL_GPIO_WritePin(LIGHT_EN_GPIO_Port, LIGHT_EN_Pin, (GPIO_PinState)1);
-    	HAL_LPTIM_PWM_Start(&hlptim1, 100, 95);
-    } else {
-//      HAL_GPIO_WritePin(LIGHT_EN_GPIO_Port, LIGHT_EN_Pin, (GPIO_PinState)0);
-    	HAL_LPTIM_PWM_Start(&hlptim1, 100, 100);
-    }
-
-    lcd_update();
-    HAL_Delay(100);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -231,7 +317,6 @@ void PeriphCommonClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
 /* USER CODE END 4 */
 
 /**

@@ -13,8 +13,13 @@
 #include "spi.h"
 #include "rtc.h"
 #include "u8g2.h"
+#include "dseg7_mini_bold_13.h"
+#include "dseg7_mini_bold_26.h"
+#include "bq27441.h"
 
 u8g2_t lcd;
+
+char* day_strings[] = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
 
 // U8g2 driver function
 uint8_t u8x8_gpio_and_delay_stm32(U8X8_UNUSED u8x8_t *u8x8, U8X8_UNUSED uint8_t msg, U8X8_UNUSED uint8_t arg_int, U8X8_UNUSED void *arg_ptr) {
@@ -70,23 +75,70 @@ void lcd_init() {
 	u8g2_SetPowerSave(&lcd, 0);
 }
 
-void lcd_update() {
+void lcd_update(int8_t editing) {
+	uint8_t flash = (HAL_GetTick() / 200) % 2;
+
 	RTC_TimeTypeDef current_time = {0};
 	RTC_DateTypeDef current_date = {0};
 	HAL_RTC_GetTime(&hrtc, &current_time, RTC_FORMAT_BIN);
 	HAL_RTC_GetDate(&hrtc, &current_date, RTC_FORMAT_BIN);
-
-	char time_string[16] = {0};
-	sprintf(time_string, "%02d:%02d", current_time.Hours, current_time.Minutes);
 
 	u8g2_ClearBuffer(&lcd);
 
 	u8g2_SetDrawColor(&lcd, 1);
 	u8g2_DrawBox(&lcd, 0, 0, 128, 128);
 
-	u8g2_SetFont(&lcd, u8g2_font_logisoso38_tn);
+	char buffer[32] = {0};
+
+	if (editing == 0 && flash) {
+		sprintf(buffer, "--:%02d", current_time.Minutes);
+	} else if (editing == 1 && flash) {
+		sprintf(buffer, "%02d:--", current_time.Hours);
+	} else {
+		sprintf(buffer, "%02d:%02d", current_time.Hours, current_time.Minutes);
+	}
+
 	u8g2_SetDrawColor(&lcd, 0);
-	u8g2_DrawStr(&lcd, 8, 83, time_string);
+	u8g2_SetFont(&lcd, u8g2_font_dseg7_mini_bold_26_hf);
+	u8g2_DrawStr(&lcd, 2, 82, buffer);
+
+	if (editing == 2 && flash) {
+		sprintf(buffer, "--");
+	} else {
+		sprintf(buffer, "%02d", current_time.Seconds);
+	}
+	u8g2_SetDrawColor(&lcd, 0);
+	u8g2_SetFont(&lcd, u8g2_font_dseg7_mini_bold_13_hf);
+	u8g2_DrawStr(&lcd, 94, 38, buffer);
+
+	sprintf(buffer, "%s", day_strings[current_date.WeekDay]);
+	u8g2_SetDrawColor(&lcd, 0);
+	u8g2_SetFont(&lcd, u8g2_font_6x12_tr);
+	u8g2_DrawStrX2(&lcd, 6, 36, buffer);
+
+	if (editing == 3 && flash) {
+		sprintf(buffer, "---%02d-%02d", current_date.Month, current_date.Year);
+	} else if (editing == 4 && flash) {
+		sprintf(buffer, "%02d----%02d", current_date.Date, current_date.Year);
+	} else if (editing == 5 && flash) {
+		sprintf(buffer, "%02d-%02d---", current_date.Date, current_date.Month);
+	} else {
+		sprintf(buffer, "%02d-%02d-%02d", current_date.Date, current_date.Month, current_date.Year);
+	}
+	u8g2_SetDrawColor(&lcd, 0);
+	u8g2_SetFont(&lcd, u8g2_font_dseg7_mini_bold_13_hf);
+	u8g2_DrawStr(&lcd, 4, 108, buffer);
+
+	sprintf(buffer, "%2d'C %3dmA %3d%%",  BQ27441_temperature(INTERNAL_TEMP)/100, BQ27441_current(AVG), BQ27441_soc(FILTERED));
+	u8g2_SetDrawColor(&lcd, 0);
+	u8g2_SetFont(&lcd, u8g2_font_squeezed_b7_tr);
+	u8g2_DrawStr(&lcd, 128-2-u8g2_GetStrWidth(&lcd, buffer), 9, buffer);
+
+	if (editing != -1) {
+		u8g2_SetDrawColor(&lcd, 0);
+		u8g2_SetFont(&lcd, u8g2_font_squeezed_b7_tr);
+		u8g2_DrawStr(&lcd, 2, 9, "EDIT");
+	}
 
 	u8g2_SendBuffer(&lcd);
 
