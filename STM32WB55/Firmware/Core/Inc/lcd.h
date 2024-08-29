@@ -111,16 +111,20 @@ void lcd_update(int8_t editing) {
 	u8g2_SetFont(&lcd, u8g2_font_dseg7_mini_bold_13_hf);
 	u8g2_DrawStr(&lcd, 94, 38, buffer);
 
-	sprintf(buffer, "%s", day_strings[current_date.WeekDay]);
+	if (editing == 3 && flash) {
+		sprintf(buffer, "---");
+	} else {
+		sprintf(buffer, "%s", day_strings[current_date.WeekDay]);
+	}
 	u8g2_SetDrawColor(&lcd, 0);
 	u8g2_SetFont(&lcd, u8g2_font_6x12_tr);
 	u8g2_DrawStrX2(&lcd, 6, 36, buffer);
 
-	if (editing == 3 && flash) {
+	if (editing == 4 && flash) {
 		sprintf(buffer, "---%02d-%02d", current_date.Month, current_date.Year);
-	} else if (editing == 4 && flash) {
-		sprintf(buffer, "%02d----%02d", current_date.Date, current_date.Year);
 	} else if (editing == 5 && flash) {
+		sprintf(buffer, "%02d----%02d", current_date.Date, current_date.Year);
+	} else if (editing == 6 && flash) {
 		sprintf(buffer, "%02d-%02d---", current_date.Date, current_date.Month);
 	} else {
 		sprintf(buffer, "%02d-%02d-%02d", current_date.Date, current_date.Month, current_date.Year);
@@ -129,7 +133,7 @@ void lcd_update(int8_t editing) {
 	u8g2_SetFont(&lcd, u8g2_font_dseg7_mini_bold_13_hf);
 	u8g2_DrawStr(&lcd, 4, 108, buffer);
 
-	sprintf(buffer, "%2d'C %3dmA %3d%%",  BQ27441_temperature(INTERNAL_TEMP)/100, BQ27441_current(AVG), BQ27441_soc(FILTERED));
+	sprintf(buffer, "%3dmA %3d%%", BQ27441_current(AVG), BQ27441_soc(FILTERED));
 	u8g2_SetDrawColor(&lcd, 0);
 	u8g2_SetFont(&lcd, u8g2_font_squeezed_b7_tr);
 	u8g2_DrawStr(&lcd, 128-2-u8g2_GetStrWidth(&lcd, buffer), 9, buffer);

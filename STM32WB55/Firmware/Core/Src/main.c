@@ -75,15 +75,23 @@ void PeriphCommonClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+	uint32_t current_timestamp = HAL_GetTick();
+
 	if (GPIO_Pin == GPIO_PIN_14) { // UP
-		up_just_pressed = 1;
-		up_press_start_timestamp = HAL_GetTick();
+		if ((current_timestamp - up_press_start_timestamp) > 200) {
+			up_just_pressed = 1;
+			up_press_start_timestamp = current_timestamp;
+		}
 	} else if(GPIO_Pin == GPIO_PIN_15) { // MENU
-		menu_just_pressed = 1;
-		menu_press_start_timestamp = HAL_GetTick();
+		if ((current_timestamp - menu_press_start_timestamp) > 200) {
+			menu_just_pressed = 1;
+			menu_press_start_timestamp = current_timestamp;
+		}
 	} else if (GPIO_Pin == GPIO_PIN_6) { // DOWN
-		down_just_pressed = 1;
-		down_press_start_timestamp = HAL_GetTick();
+		if ((current_timestamp - down_press_start_timestamp) > 200) {
+			down_just_pressed = 1;
+			down_press_start_timestamp = current_timestamp;
+		}
 	} else if (GPIO_Pin == GPIO_PIN_3) { // LIGHT
 		if (HAL_GPIO_ReadPin(SW_LIGHT_GPIO_Port, SW_LIGHT_Pin)) {
 			HAL_LPTIM_PWM_Start(&hlptim1, 100, 50);
@@ -150,6 +158,8 @@ int main(void)
   MX_SPI1_Init();
   MX_USB_PCD_Init();
   /* USER CODE BEGIN 2 */
+  HAL_RTCEx_SetSmoothCalib(&hrtc, RTC_SMOOTHCALIB_PERIOD_32SEC, RTC_SMOOTHCALIB_PLUSPULSES_RESET, 160);
+
   static BQ27441_ctx_t BQ27441 = {
 		  .BQ27441_i2c_address = BQ72441_I2C_ADDRESS, // i2c device address, if you have another address change this
 		  .read_reg = BQ27441_i2cReadBytes,           // i2c read callback
@@ -171,15 +181,15 @@ int main(void)
 
 	static uint8_t editing = 0;
 
-	static uint8_t already_triggered = 0;
-	if (!HAL_GPIO_ReadPin(SW_MENU_GPIO_Port, SW_MENU_Pin) && ((current_timestamp - menu_press_start_timestamp) > 1000)) {
-		if (!already_triggered) {
+	static bool just_switched = false;
+	if (!HAL_GPIO_ReadPin(SW_MENU_GPIO_Port, SW_MENU_Pin) && ((current_timestamp - menu_press_start_timestamp) > 3000)) {
+		if (!just_switched) {
 			should_sleep = !should_sleep;
 			editing = 0;
+			just_switched = true;
 		}
-		already_triggered = 1;
 	} else {
-		already_triggered = 0;
+		just_switched = false;
 	}
 
 	if (should_sleep) {
@@ -197,30 +207,32 @@ int main(void)
 		HAL_RTC_GetDate(&hrtc, &new_date, RTC_FORMAT_BIN);
 
 		 if (up_just_pressed) {
-			 if (editing == 0) new_time.Hours = ((int16_t)new_time.Hours + 1) % 24;
-			 else if (editing == 1) new_time.Minutes = ((int16_t)new_time.Minutes + 1) % 60;
-			 else if (editing == 2) new_time.Seconds = ((int16_t)new_time.Seconds + 1) % 60;
-			 else if (editing == 3) new_date.Date = ((int16_t)new_date.Date % 31) + 1;
-			 else if (editing == 4) new_date.Month = ((int16_t)new_date.Month % 12) + 1;
-			 else if (editing == 5) new_date.Year = ((int16_t)new_date.Year + 1) % 100;
+			 if (editing == 0) new_time.Hours = (int16_t)((int16_t)new_time.Hours + 1) % 24;
+			 else if (editing == 1) new_time.Minutes = (int16_t)((int16_t)new_time.Minutes + 1) % 60;
+			 else if (editing == 2) new_time.Seconds = (int16_t)((int16_t)new_time.Seconds + 1) % 60;
+			 else if (editing == 3) new_date.WeekDay = (int16_t)((int16_t)new_date.WeekDay + 1)% 7;
+			 else if (editing == 4) new_date.Date = (int16_t)((int16_t)new_date.Date % 31) + 1;
+			 else if (editing == 5) new_date.Month = (int16_t)((int16_t)new_date.Month % 12) + 1;
+			 else if (editing == 6) new_date.Year = (int16_t)((int16_t)new_date.Year + 1) % 100;
 
 			up_just_pressed = false;
 		 }
 
 		 if (down_just_pressed) {
-			 if (editing == 0) new_time.Hours = ((int16_t)new_time.Hours - 1) % 24;
-			 else if (editing == 1) new_time.Minutes = ((int16_t)new_time.Minutes - 1) % 60;
-			 else if (editing == 2) new_time.Seconds = ((int16_t)new_time.Seconds - 1) % 60;
-			 else if (editing == 3) new_date.Date = (((int16_t)new_date.Date - 1) % 32);
-			 else if (editing == 4) new_date.Month = (((int16_t)new_date.Month - 1) % 13);
-			 else if (editing == 5) new_date.Year = ((int16_t)new_date.Year - 1) % 100;
+			 if (editing == 0) new_time.Hours = (int16_t)((int16_t)new_time.Hours - 1) % 24;
+			 else if (editing == 1) new_time.Minutes = (int16_t)((int16_t)new_time.Minutes - 1) % 60;
+			 else if (editing == 2) new_time.Seconds = (int16_t)((int16_t)new_time.Seconds - 1) % 60;
+			 else if (editing == 3) new_date.WeekDay = (int16_t)((int16_t)new_date.WeekDay - 1) % 7;
+			 else if (editing == 4) new_date.Date = (int16_t)((int16_t)new_date.Date - 1) % 32;
+			 else if (editing == 5) new_date.Month = (int16_t)((int16_t)new_date.Month - 1) % 13;
+			 else if (editing == 6) new_date.Year = (int16_t)((int16_t)new_date.Year - 1) % 100;
 
 			 down_just_pressed = false;
 		 }
 
 		 if (menu_just_pressed) {
-			 editing = (editing + 1) % 6;
-			menu_just_pressed = false;
+			 editing = (editing + 1) % 7;
+			 menu_just_pressed = false;
 		 }
 		 HAL_RTC_SetTime(&hrtc, &new_time, RTC_FORMAT_BIN);
 		 HAL_RTC_SetDate(&hrtc, &new_date, RTC_FORMAT_BIN);

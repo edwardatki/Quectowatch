@@ -65,6 +65,7 @@ void enter_stop(uint16_t milliseconds) {
 	/* ... Stop 2 mode ... */
 
 	/* Resume SysTick */
+	uwTick += milliseconds;
 	HAL_ResumeTick();
 
 	/* Configure system clock after wake-up from STOP */
