@@ -133,7 +133,7 @@ void lcd_update(int8_t editing) {
 	u8g2_SetFont(&lcd, u8g2_font_dseg7_mini_bold_13_hf);
 	u8g2_DrawStr(&lcd, 4, 108, buffer);
 
-	sprintf(buffer, "%3dmA %3d%%", BQ27441_current(AVG), BQ27441_soc(FILTERED));
+	sprintf(buffer, "%3dmA %4.2f %3d%%", BQ27441_current(AVG), (float)BQ27441_voltage()/1000.0, BQ27441_soc(FILTERED));
 	u8g2_SetDrawColor(&lcd, 0);
 	u8g2_SetFont(&lcd, u8g2_font_squeezed_b7_tr);
 	u8g2_DrawStr(&lcd, 128-2-u8g2_GetStrWidth(&lcd, buffer), 9, buffer);

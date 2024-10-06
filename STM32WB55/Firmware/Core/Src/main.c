@@ -166,9 +166,11 @@ int main(void)
 		  .write_reg = BQ27441_i2cWriteBytes,         // i2c write callback
   };
   BQ27441_init(&BQ27441);
-  BQ27441_enterConfig (1);
+//  BQ27441_Full_Reset();
+  BQ27441_enterConfig(1);
   BQ27441_setCapacity(500);
-  BQ27441_exitConfig (1);
+  BQ27441_setTerminateVoltageMin(3000);
+  BQ27441_exitConfig(1);
 
   lcd_init();
   /* USER CODE END 2 */
@@ -207,25 +209,25 @@ int main(void)
 		HAL_RTC_GetDate(&hrtc, &new_date, RTC_FORMAT_BIN);
 
 		 if (up_just_pressed) {
-			 if (editing == 0) new_time.Hours = (int16_t)((int16_t)new_time.Hours + 1) % 24;
-			 else if (editing == 1) new_time.Minutes = (int16_t)((int16_t)new_time.Minutes + 1) % 60;
-			 else if (editing == 2) new_time.Seconds = (int16_t)((int16_t)new_time.Seconds + 1) % 60;
-			 else if (editing == 3) new_date.WeekDay = (int16_t)((int16_t)new_date.WeekDay + 1)% 7;
-			 else if (editing == 4) new_date.Date = (int16_t)((int16_t)new_date.Date % 31) + 1;
-			 else if (editing == 5) new_date.Month = (int16_t)((int16_t)new_date.Month % 12) + 1;
-			 else if (editing == 6) new_date.Year = (int16_t)((int16_t)new_date.Year + 1) % 100;
+			 if (editing == 0) new_time.Hours = (uint16_t)((uint16_t)new_time.Hours + 1) % 24;
+			 else if (editing == 1) new_time.Minutes = (uint16_t)((uint16_t)new_time.Minutes + 1) % 60;
+			 else if (editing == 2) new_time.Seconds = (uint16_t)((uint16_t)new_time.Seconds + 1) % 60;
+			 else if (editing == 3) new_date.WeekDay = (uint16_t)((uint16_t)new_date.WeekDay + 1)% 6;
+			 else if (editing == 4) new_date.Date = (uint16_t)((uint16_t)new_date.Date % 31) + 1;
+			 else if (editing == 5) new_date.Month = (uint16_t)((uint16_t)new_date.Month % 12) + 1;
+			 else if (editing == 6) new_date.Year = (uint16_t)((uint16_t)new_date.Year + 1) % 100;
 
 			up_just_pressed = false;
 		 }
 
 		 if (down_just_pressed) {
-			 if (editing == 0) new_time.Hours = (int16_t)((int16_t)new_time.Hours - 1) % 24;
-			 else if (editing == 1) new_time.Minutes = (int16_t)((int16_t)new_time.Minutes - 1) % 60;
-			 else if (editing == 2) new_time.Seconds = (int16_t)((int16_t)new_time.Seconds - 1) % 60;
-			 else if (editing == 3) new_date.WeekDay = (int16_t)((int16_t)new_date.WeekDay - 1) % 7;
-			 else if (editing == 4) new_date.Date = (int16_t)((int16_t)new_date.Date - 1) % 32;
-			 else if (editing == 5) new_date.Month = (int16_t)((int16_t)new_date.Month - 1) % 13;
-			 else if (editing == 6) new_date.Year = (int16_t)((int16_t)new_date.Year - 1) % 100;
+			 if (editing == 0) new_time.Hours = (uint16_t)((uint16_t)new_time.Hours - 1) % 24;
+			 else if (editing == 1) new_time.Minutes = (uint16_t)((uint16_t)new_time.Minutes - 1) % 60;
+			 else if (editing == 2) new_time.Seconds = (uint16_t)((uint16_t)new_time.Seconds - 1) % 60;
+			 else if (editing == 3) new_date.WeekDay = (uint16_t)((uint16_t)new_date.WeekDay - 1) % 6;
+			 else if (editing == 4) new_date.Date = (uint16_t)((uint16_t)new_date.Date - 1) % 32;
+			 else if (editing == 5) new_date.Month = (uint16_t)((uint16_t)new_date.Month - 1) % 13;
+			 else if (editing == 6) new_date.Year = (uint16_t)((uint16_t)new_date.Year - 1) % 100;
 
 			 down_just_pressed = false;
 		 }
